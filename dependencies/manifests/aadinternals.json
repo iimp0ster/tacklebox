@@ -1,8 +1,0 @@
-{
-  "name": "AADInternals",
-  "kind": "psgallery",
-  "module": "AADInternals",
-  "version": "0.9.6",
-  "verify_command": "Get-Module AADInternals -ListAvailable",
-  "notes": "Version is a placeholder; confirm at Phase 0 exit before Phase 2 atomics author against this pin."
-}
