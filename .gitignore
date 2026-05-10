@@ -1,0 +1,29 @@
+# Tacklebox runtime state — never committed
+.tacklebox/
+~/.tacklebox/
+
+# PowerShell module artifacts
+*.bak
+*.bakup
+*.ps1.swp
+
+# Test output
+TestResults*.xml
+coverage*.xml
+PesterResults.xml
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Python (for roadtx subprocess artifacts during tests)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+Thumbs.db
