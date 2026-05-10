@@ -1,9 +1,0 @@
-{
-  "name": "roadtx",
-  "kind": "python-pipx",
-  "package": "roadtools",
-  "version": "1.7.0",
-  "verify_command": ["roadtx", "--help"],
-  "verify_pattern": "Usage: roadtx",
-  "notes": "Version is a placeholder; confirm at Phase 0 exit before Phase 1 atomics author against this pin."
-}
