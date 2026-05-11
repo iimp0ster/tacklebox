@@ -141,10 +141,10 @@ function Invoke-Tacklebox {
     # ── 4. Resolve input arguments (defaults ← YAML, overridden by caller) ───
 
     $resolvedArgs = @{}
-    if ($selectedTest.ContainsKey('input_arguments') -and $selectedTest.input_arguments) {
+    if ($selectedTest.Contains('input_arguments') -and $selectedTest.input_arguments) {
         foreach ($key in $selectedTest.input_arguments.Keys) {
             $argDef = $selectedTest.input_arguments[$key]
-            if ($argDef.ContainsKey('default') -and $null -ne $argDef['default']) {
+            if ($argDef.Contains('default') -and $null -ne $argDef['default']) {
                 $resolvedArgs[$key] = [string]$argDef['default']
             }
         }
@@ -153,12 +153,12 @@ function Invoke-Tacklebox {
         $resolvedArgs[$key] = [string]$InputArgs[$key]
     }
 
-    if ($selectedTest.ContainsKey('input_arguments') -and $selectedTest.input_arguments) {
+    if ($selectedTest.Contains('input_arguments') -and $selectedTest.input_arguments) {
         $missing = @(
             $selectedTest.input_arguments.Keys |
             Where-Object {
                 $def = $selectedTest.input_arguments[$_]
-                -not $def.ContainsKey('default') -and -not $resolvedArgs.ContainsKey($_)
+                -not $def.Contains('default') -and -not $resolvedArgs.Contains($_)
             }
         )
         if ($missing.Count -gt 0) {
@@ -189,7 +189,7 @@ function Invoke-Tacklebox {
 
     # ── 7. Token state resolution ─────────────────────────────────────────────
 
-    $requiresToken  = $selectedTest.ContainsKey('requires_token') ? $selectedTest.requires_token : $false
+    $requiresToken  = $selectedTest.Contains('requires_token') ? $selectedTest.requires_token : $false
     $resolvedKey    = $null
     $tokenCachePath = $null
 
@@ -199,10 +199,10 @@ function Invoke-Tacklebox {
 
         $resolvedKey = if ($TokenCacheKey) {
             $TokenCacheKey
-        } elseif ($requiresToken -is [hashtable] -and $requiresToken.ContainsKey('from')) {
+        } elseif ($requiresToken -is [hashtable] -and $requiresToken.Contains('from')) {
             "${tenantId}_$($requiresToken['from'])"
         } else {
-            $authProfile = $selectedTest.ContainsKey('auth_profile') ? $selectedTest.auth_profile : 'default'
+            $authProfile = $selectedTest.Contains('auth_profile') ? $selectedTest.auth_profile : 'default'
             "${tenantId}_${authProfile}"
         }
 
@@ -235,8 +235,8 @@ function Invoke-Tacklebox {
         AtomicId         = $atomicId
         TestName         = $selectedTest.name
         Technique        = $parsed.attack_technique
-        AuthProfile      = $selectedTest.ContainsKey('auth_profile')    ? $selectedTest.auth_profile    : $null
-        DefenseEvasion   = $selectedTest.ContainsKey('defense_evasion') ? $selectedTest.defense_evasion : $null
+        AuthProfile      = $selectedTest.Contains('auth_profile')    ? $selectedTest.auth_profile    : $null
+        DefenseEvasion   = $selectedTest.Contains('defense_evasion') ? $selectedTest.defense_evasion : $null
         TokenCacheKey    = $resolvedKey
         InputArgs        = $resolvedArgs
         Command          = $resolvedCommand
@@ -267,14 +267,14 @@ function Invoke-Tacklebox {
         Write-Host "  Executor : $($selectedTest.executor.name)"
         Write-Host "  Command  :"
         ($resolvedCommand.Trim() -split "`n") | ForEach-Object { Write-Host "    $_" }
-        if ($selectedTest.ContainsKey('expected_telemetry') -and $selectedTest.expected_telemetry) {
+        if ($selectedTest.Contains('expected_telemetry') -and $selectedTest.expected_telemetry) {
             Write-Host "  Expected telemetry:"
             foreach ($exp in $selectedTest.expected_telemetry) {
-                $budget = $exp.ContainsKey('within_minutes') ? $exp.within_minutes : '?'
+                $budget = $exp.Contains('within_minutes') ? $exp.within_minutes : '?'
                 Write-Host "    [$($exp.source)] within ${budget} min  match: $($exp.match | ConvertTo-Json -Compress)"
             }
         }
-        if ($selectedTest.ContainsKey('exercises_chokepoint') -and $selectedTest.exercises_chokepoint) {
+        if ($selectedTest.Contains('exercises_chokepoint') -and $selectedTest.exercises_chokepoint) {
             Write-Host "  Chokepoint: $($selectedTest.exercises_chokepoint.id)"
         }
         Write-Host "  RunId    : $RunId`n"
@@ -291,8 +291,8 @@ function Invoke-Tacklebox {
         defense_evasion    = $result.DefenseEvasion
         input_args         = $resolvedArgs
         executor           = $selectedTest.executor.name
-        expected_telemetry = $selectedTest.ContainsKey('expected_telemetry') ? $selectedTest.expected_telemetry : @()
-        exercises_chokepoint = $selectedTest.ContainsKey('exercises_chokepoint') ? $selectedTest.exercises_chokepoint : $null
+        expected_telemetry = $selectedTest.Contains('expected_telemetry') ? $selectedTest.expected_telemetry : @()
+        exercises_chokepoint = $selectedTest.Contains('exercises_chokepoint') ? $selectedTest.exercises_chokepoint : $null
     }
 
     Write-RunLog -RunId $RunId -Kind 'cast-start' -Atomic $atomicId -Data $castData
@@ -348,9 +348,9 @@ function Invoke-Tacklebox {
     if ($mode -eq 'Validate') {
         $maxWait = 15
         $expectations = @()
-        if ($selectedTest.ContainsKey('expected_telemetry') -and $selectedTest.expected_telemetry) {
+        if ($selectedTest.Contains('expected_telemetry') -and $selectedTest.expected_telemetry) {
             $expectations = @($selectedTest.expected_telemetry)
-            $budgets = @($expectations | Where-Object { $_.ContainsKey('within_minutes') } |
+            $budgets = @($expectations | Where-Object { $_.Contains('within_minutes') } |
                          ForEach-Object { $_.within_minutes })
             if ($budgets.Count -gt 0) {
                 $maxWait = ($budgets | Measure-Object -Maximum).Maximum
