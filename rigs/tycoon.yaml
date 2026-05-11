@@ -1,0 +1,34 @@
+rig: tycoon
+display_name: "Tycoon 2FA – AiTM Phishing Kit Profile"
+description: |
+  Emulates the Tycoon 2FA AiTM phishing kit. Kill chain:
+    1. Device-code phishing to steal an access + refresh token.
+    2. Refresh-token pivot to EXO/Outlook resource.
+    3. Mailbox enumeration via Graph (MailItemsAccessed).
+    4. Inbox rule creation for persistent exfiltration.
+  Tycoon uses Chrome/Windows UA and direct datacenter egress.
+ua_profile: tycoon-chrome-win
+egress_profile: datacenter
+stop_on_error: true
+steps:
+  - atomic: T1078.004-device-code
+    test_name: "Device Code Flow Phishing via roadtx"
+    args:
+      resource: "https://graph.microsoft.com"
+
+  - atomic: T1550.001-token-refresh-swap
+    test_name: "Refresh token pivot to new resource via roadtx"
+    requires_token_from: T1078.004-device-code
+    args:
+      target_resource: "https://outlook.office.com"
+
+  - atomic: T1114.002-mail-items-accessed
+    test_name: "Access mailbox items via Graph API to generate MailItemsAccessed events"
+    requires_token_from: T1078.004-device-code
+
+  - atomic: T1114.003-email-rules-exfil
+    test_name: "Create inbox forwarding rule via Microsoft Graph"
+    requires_token_from: T1078.004-device-code
+    args:
+      rule_name: "Tycoon-Lab-Exfil-Rule"
+      subject_filter: "invoice"

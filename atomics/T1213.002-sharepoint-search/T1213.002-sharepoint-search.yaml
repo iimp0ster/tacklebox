@@ -1,0 +1,83 @@
+attack_technique: T1213.002
+display_name: "Post-Exploitation – SharePoint / OneDrive Content Search"
+atomic_tests:
+  - name: "Search SharePoint and OneDrive for sensitive content via Graph"
+    auto_generated_guid: f8a9b0c1-d2e3-4567-fabc-567890123417
+    description: |
+      Searches SharePoint sites and OneDrive for files matching keyword
+      patterns (e.g., "password", "invoice", "wire transfer") using the
+      Microsoft Graph search API. Mimics BEC actors performing targeted
+      intelligence collection before crafting fraud emails. Wraps
+      Microsoft.Graph.Search.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      search_query:
+        description: "Search keyword(s) to look for in SharePoint/OneDrive."
+        type: String
+        default: "password OR credentials OR invoice"
+      result_limit:
+        description: "Maximum number of search results to retrieve."
+        type: Integer
+        default: "20"
+      output_path:
+        description: "Path to write search results as JSON."
+        type: Path
+        default: "tacklebox-sp-search.json"
+      token_cache_path:
+        description: "Path to a Graph-scoped token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        Import-Module Microsoft.Graph.Search -ErrorAction Stop
+
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+        $searchBody = @{
+            requests = @(
+                @{
+                    entityTypes = @('driveItem', 'listItem')
+                    query       = @{ queryString = '#{search_query}' }
+                    from        = 0
+                    size        = #{result_limit}
+                }
+            )
+        }
+
+        $searchResults = Invoke-MgQuerySearch -BodyParameter $searchBody
+
+        $hits = @($searchResults.HitsContainers | ForEach-Object { $_.Hits })
+        Write-Host "Found $($hits.Count) result(s) for query '#{search_query}'."
+
+        $hits | Select-Object -Property @{N='Name';E={$_.Resource.Name}},
+                                         @{N='WebUrl';E={$_.Resource.WebUrl}},
+                                         @{N='Score';E={$_.Rank}} |
+            ConvertTo-Json | Set-Content -LiteralPath '#{output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    references:
+      - "https://thedfirreport.com/2023/01/09/you-ve-been-hit-with-a-bec/"
+    auth_profile: "graph-delegated"
+    defense_evasion: "Search API access is rarely monitored; content access does not generate MailItemsAccessed"
+    requires_token:
+      from: "cookie-replay"
+      resource: "https://graph.microsoft.com"
+    expected_telemetry:
+      - source: ual
+        match:
+          Operations: "SearchQueryPerformed"
+        within_minutes: 20
+    exercises_chokepoint:
+      id: "DC-POSTEX-006"
+      url: "https://detectionchokepoints.com/postex/sharepoint-search"

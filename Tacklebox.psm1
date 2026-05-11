@@ -62,6 +62,7 @@ Export-ModuleMember -Function @(
     'Invoke-TackleboxRig',
     'Get-Tackle',
     'Get-TackleboxRig',
+    'Get-TackleboxToken',
     'Search-TackleboxTelemetry',
     'Test-TackleboxLab',
     'Get-TackleboxCoverage',

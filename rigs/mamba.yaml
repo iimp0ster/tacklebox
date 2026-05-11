@@ -1,0 +1,35 @@
+rig: mamba
+display_name: "Mamba – AiTM Kit Profile (OAuth + BEC)"
+description: |
+  Emulates the Mamba AiTM phishing kit pattern. Kill chain:
+    1. OAuth consent grant to persist app access.
+    2. Refresh-token pivot to Exchange resource.
+    3. SharePoint keyword search for high-value files.
+    4. BEC reply-chain hijacking in an existing thread.
+  Mamba typically uses Firefox/Windows UA and datacenter egress.
+ua_profile: mamba-firefox-win
+egress_profile: datacenter
+stop_on_error: false
+steps:
+  - atomic: T1528-oauth-consent-grant
+    test_name: "OAuth app consent grant via roadtx"
+    args:
+      scope: "openid profile offline_access Mail.Read Mail.Send Files.Read.All"
+
+  - atomic: T1550.001-token-refresh-swap
+    test_name: "Refresh token pivot to new resource via roadtx"
+    requires_token_from: T1528-oauth-consent-grant
+    args:
+      target_resource: "https://outlook.office.com"
+
+  - atomic: T1213.002-sharepoint-search
+    test_name: "Search SharePoint and OneDrive for sensitive content via Graph"
+    requires_token_from: T1528-oauth-consent-grant
+    args:
+      search_query: "wire transfer OR bank account OR credentials"
+
+  - atomic: T1534-bec-reply-chain
+    test_name: "Reply to existing email thread from compromised mailbox via Graph"
+    requires_token_from: T1528-oauth-consent-grant
+    args:
+      thread_subject_keyword: "payment"

@@ -1,0 +1,66 @@
+attack_technique: T1087.004
+display_name: "Post-Exploitation – Azure AD / Entra Graph Enumeration"
+atomic_tests:
+  - name: "Enumerate users, groups, and roles via Microsoft Graph"
+    auto_generated_guid: e7f8a9b0-c1d2-3456-efab-456789012316
+    description: |
+      Enumerates users, groups, service principals, and role assignments
+      from an Entra tenant using a delegated or application Graph token.
+      Maps to CISA's documented BEC reconnaissance phase. Wraps
+      Microsoft.Graph PowerShell module.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      output_path:
+        description: "Path to write enumeration results as JSON."
+        type: Path
+        default: "tacklebox-enum-results.json"
+      token_cache_path:
+        description: "Path to the Graph-scoped token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        Import-Module Microsoft.Graph.Users    -ErrorAction Stop
+        Import-Module Microsoft.Graph.Groups   -ErrorAction Stop
+        Import-Module Microsoft.Graph.Identity.DirectoryManagement -ErrorAction Stop
+
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+        $results = [ordered]@{
+            users           = @(Get-MgUser -All -Select 'userPrincipalName,displayName,jobTitle,mail' | Select-Object -First 50)
+            groups          = @(Get-MgGroup -All -Select 'displayName,mail,groupTypes' | Select-Object -First 50)
+            directoryRoles  = @(Get-MgDirectoryRole -All | Select-Object -First 20)
+        }
+
+        $results | ConvertTo-Json -Depth 6 |
+            Set-Content -LiteralPath '#{output_path}'
+
+        Write-Host "Enumeration complete: $($results.users.Count) users, $($results.groups.Count) groups, $($results.directoryRoles.Count) roles."
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    references:
+      - "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-093a"
+    auth_profile: "graph-delegated"
+    defense_evasion: "Read-only enumeration blends with legitimate admin activity"
+    requires_token:
+      from: "cookie-replay"
+      resource: "https://graph.microsoft.com"
+    expected_telemetry:
+      - source: graph_audit
+        match:
+          activityDisplayName: "List users"
+        within_minutes: 20
+    exercises_chokepoint:
+      id: "DC-POSTEX-005"
+      url: "https://detectionchokepoints.com/postex/graph-enumeration"

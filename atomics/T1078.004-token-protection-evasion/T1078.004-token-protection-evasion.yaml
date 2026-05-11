@@ -1,0 +1,62 @@
+attack_technique: T1078.004
+display_name: "Defense Evasion – Entra Token Protection Policy Bypass"
+atomic_tests:
+  - name: "Token Protection CA policy bypass via legacy client"
+    auto_generated_guid: f6a7b8c9-d0e1-2345-fabc-345678901205
+    description: |
+      Authenticates using a client application or flow that is not covered
+      by a Token Protection Conditional Access policy, bypassing the binding
+      of tokens to the originating device. Wraps roadtx to authenticate with
+      a client that does not support proof-of-possession (PoP) tokens.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      client_id:
+        description: "Client ID of an app not subject to Token Protection policy."
+        type: String
+        default: "1b730954-1685-4b74-9bfd-dac224a7b894"
+      resource:
+        description: "Target resource."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        roadtx gettokens `
+          --device-code `
+          --client '#{client_id}' `
+          --resource '#{resource}' `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-token-protection"
+    auth_profile: "token-protection-bypass"
+    defense_evasion: "Obtains bearer token not subject to Token Protection PoP binding"
+    requires_token: false
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          conditionalAccessStatus: "success"
+          authenticationProtocol: "deviceCode"
+        within_minutes: 15
+      - source: graph_audit
+        match:
+          activityDisplayName: "Sign-in activity"
+        within_minutes: 20
+    exercises_chokepoint:
+      id: "DC-EVAS-002"
+      url: "https://detectionchokepoints.com/evasion/token-protection-bypass"

