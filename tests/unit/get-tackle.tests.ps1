@@ -18,35 +18,60 @@ AfterAll {
     $env:TACKLEBOX_LAB_OVERRIDE = $null
 }
 
-Describe 'Get-Tackle (Phase 0 exit gate)' {
+Describe 'Get-Tackle' {
 
-    It 'returns an empty array when no atomics are authored' {
+    It 'returns atomics for every authored YAML' {
         $result = Get-Tackle
-        # The Phase 0 exit criterion: clean empty return, no errors.
-        @($result).Count | Should -Be 0
+        # v1 ships 20 atomics; at minimum the harness gate atomic must be present.
+        @($result).Count | Should -BeGreaterThan 0
+        $result | Where-Object Id -eq 'T1078.004-device-code' | Should -Not -BeNullOrEmpty
     }
 
     It 'returns an empty array when filtering with no matches' {
         $result = Get-Tackle -Id 'T9999-nope'
         @($result).Count | Should -Be 0
     }
+
+    It 'filters by AuthProfile' {
+        $result = Get-Tackle -AuthProfile 'device-code'
+        @($result).Count | Should -BeGreaterThan 0
+        $result | ForEach-Object { $_.AuthProfile | Should -Be 'device-code' }
+    }
+
+    It 'filters by Chokepoint id' {
+        $result = Get-Tackle -Chokepoint 'DC-AUTH-001'
+        @($result).Count | Should -BeGreaterThan 0
+    }
 }
 
-Describe 'Stub cmdlets refuse with Phase pointer' {
+Describe 'Implemented cmdlets – smoke tests' {
 
-    It 'Invoke-Tacklebox throws Phase 1 message' {
-        { Invoke-Tacklebox -Atomic 'whatever' -DryRun } | Should -Throw '*Phase 1*'
+    It 'Invoke-Tacklebox -DryRun returns a result object' {
+        $r = Invoke-Tacklebox -Atomic 'T1078.004-device-code' -DryRun
+        $r.Mode   | Should -Be 'DryRun'
+        $r.Status | Should -Be 'dry-run'
     }
 
-    It 'Invoke-TackleboxRig throws Phase 4 message' {
-        { Invoke-TackleboxRig -Rig 'whatever' -DryRun } | Should -Throw '*Phase 4*'
+    It 'Invoke-Tacklebox throws on unknown atomic' {
+        { Invoke-Tacklebox -Atomic 'T9999-nope' -DryRun } | Should -Throw '*not found*'
     }
 
-    It 'Search-TackleboxTelemetry throws Phase 1 message' {
-        { Search-TackleboxTelemetry -RunId 'x' } | Should -Throw '*Phase 1*'
+    It 'Invoke-TackleboxRig throws on unknown rig' {
+        { Invoke-TackleboxRig -Rig 'nonexistent' -DryRun } | Should -Throw '*not found*'
     }
 
-    It 'Get-TackleboxCoverage throws Phase 5 message' {
-        { Get-TackleboxCoverage } | Should -Throw '*Phase 5*'
+    It 'Search-TackleboxTelemetry throws on unknown RunId' {
+        { Search-TackleboxTelemetry -RunId 'no-such-run' } | Should -Throw '*No run log*'
+    }
+
+    It 'Get-TackleboxCoverage returns coverage rows' {
+        $result = Get-TackleboxCoverage -Format Json | ConvertFrom-Json
+        @($result).Count | Should -BeGreaterThan 0
+    }
+
+    It 'Get-TackleboxRig returns rig entries' {
+        $result = Get-TackleboxRig
+        @($result).Count | Should -BeGreaterThan 0
+        $result | Where-Object Name -eq 'tycoon' | Should -Not -BeNullOrEmpty
     }
 }

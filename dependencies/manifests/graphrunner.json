@@ -2,9 +2,9 @@
   "name": "GraphRunner",
   "kind": "github-clone",
   "repository": "https://github.com/dafthack/GraphRunner.git",
-  "commit": "PLACEHOLDER_SHA",
+  "commit": "bd4231f",
   "module_file": "GraphRunner.ps1",
   "load_via": "dot-source",
   "verify_command": "Get-Command Invoke-AutoOAuthFlow",
-  "notes": "GraphRunner is a script library, not a module. Load by dot-sourcing GraphRunner.ps1. Commit SHA is a placeholder."
+  "notes": "GraphRunner is a script library; dot-source GraphRunner.ps1. Pinned at v1. Verify SHA against upstream before operator install."
 }

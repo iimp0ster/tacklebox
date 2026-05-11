@@ -22,7 +22,9 @@ jobs:
           node-version: '20'
 
       - name: Install ajv-cli
-        run: npm install --global ajv-cli ajv-formats js-yaml
+        run: |
+          npm install --global ajv-cli ajv-formats
+          npm install js-yaml
 
       - name: Validate atomics against schema
         run: |
@@ -31,7 +33,7 @@ jobs:
           for yaml in atomics/*/*.yaml; do
             json="$(node -e "console.log(JSON.stringify(require('js-yaml').load(require('fs').readFileSync('$yaml','utf8'))))")"
             echo "$json" > /tmp/atomic.json
-            if ! ajv validate -s schema/tacklebox-atomic.schema.json -d /tmp/atomic.json --strict=false -c ajv-formats; then
+            if ! ajv validate -s schema/tacklebox-atomic.schema.json -d /tmp/atomic.json --strict=false -c ajv-formats --spec=draft2020; then
               echo "::error file=$yaml::Schema validation failed"
               fail=1
             fi
@@ -47,7 +49,7 @@ jobs:
           for yaml in rigs/*.yaml; do
             json="$(node -e "console.log(JSON.stringify(require('js-yaml').load(require('fs').readFileSync('$yaml','utf8'))))")"
             echo "$json" > /tmp/rig.json
-            if ! ajv validate -s schema/tacklebox-rig.schema.json -d /tmp/rig.json --strict=false -c ajv-formats; then
+            if ! ajv validate -s schema/tacklebox-rig.schema.json -d /tmp/rig.json --strict=false -c ajv-formats --spec=draft2020; then
               echo "::error file=$yaml::Schema validation failed"
               fail=1
             fi

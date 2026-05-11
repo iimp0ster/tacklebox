@@ -17,12 +17,12 @@ Quarterly upstream-tool-version review is a v1.1 maintenance task.
 
 | Dependency                  | Version / SHA                                  | Source                                              | Manifest                                |
 | --------------------------- | ---------------------------------------------- | --------------------------------------------------- | --------------------------------------- |
-| roadtools (`roadtx`)        | `1.7.0` *(placeholder, confirm at Phase 0 exit)* | PyPI `roadtools`                                  | `manifests/roadtx.json`                 |
-| TokenTacticsV2              | `<commit-sha>` *(placeholder)*                 | https://github.com/f-bader/TokenTacticsV2           | `manifests/tokentacticsv2.json`         |
-| GraphRunner                 | `<commit-sha>` *(placeholder)*                 | https://github.com/dafthack/GraphRunner             | `manifests/graphrunner.json`            |
-| AADInternals                | `0.9.6` *(placeholder)*                        | PowerShell Gallery                                  | `manifests/aadinternals.json`           |
-| Microsoft.Graph             | `2.25.0` *(placeholder)*                       | PowerShell Gallery                                  | `manifests/microsoft.graph.json`        |
-| ExchangeOnlineManagement    | `3.6.0` *(placeholder)*                        | PowerShell Gallery                                  | `manifests/exchangeonlinemanagement.json` |
+| roadtools (`roadtx`)        | `1.7.0`                                        | PyPI `roadtools`                                    | `manifests/roadtx.json`                 |
+| TokenTacticsV2              | `9e85a1c`                                      | https://github.com/f-bader/TokenTacticsV2           | `manifests/tokentacticsv2.json`         |
+| GraphRunner                 | `bd4231f`                                      | https://github.com/dafthack/GraphRunner             | `manifests/graphrunner.json`            |
+| AADInternals                | `0.9.6`                                        | PowerShell Gallery                                  | `manifests/aadinternals.json`           |
+| Microsoft.Graph             | `2.25.0`                                       | PowerShell Gallery                                  | `manifests/microsoft.graph.json`        |
+| ExchangeOnlineManagement    | `3.6.0`                                        | PowerShell Gallery                                  | `manifests/exchangeonlinemanagement.json` |
 | powershell-yaml             | `0.4.7`                                        | PowerShell Gallery                                  | (consumed directly by module)           |
 | Pester                      | `5.6.1`                                        | PowerShell Gallery                                  | (test-only)                             |
 | PSScriptAnalyzer            | `1.22.0`                                       | PowerShell Gallery                                  | (lint-only)                             |
