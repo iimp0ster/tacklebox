@@ -46,13 +46,13 @@ function Get-TackleboxCoverage {
 
         $cpId = $row.Chokepoint
 
-        if (-not $coverage.ContainsKey($cpId)) {
+        if (-not $coverage.Contains($cpId)) {
             # Resolve chokepoint URL from the YAML if available
             $cpUrl = $null
             try {
                 $yamlData = Read-AtomicYaml -Path $row.YamlPath
                 $test = @($yamlData.atomic_tests) | Where-Object { $_.name -eq $row.TestName } | Select-Object -First 1
-                if ($test -and $test.ContainsKey('exercises_chokepoint') -and $test.exercises_chokepoint.ContainsKey('url')) {
+                if ($test -and $test.Contains('exercises_chokepoint') -and $test.exercises_chokepoint.Contains('url')) {
                     $cpUrl = $test.exercises_chokepoint.url
                 }
             } catch {
@@ -81,7 +81,7 @@ function Get-TackleboxCoverage {
         try {
             $yamlData = Read-AtomicYaml -Path $row.YamlPath
             $test = @($yamlData.atomic_tests) | Where-Object { $_.name -eq $row.TestName } | Select-Object -First 1
-            if ($test -and $test.ContainsKey('expected_telemetry') -and $test.expected_telemetry) {
+            if ($test -and $test.Contains('expected_telemetry') -and $test.expected_telemetry) {
                 foreach ($exp in $test.expected_telemetry) {
                     if ($exp.source -and $entry.TelemetrySources -notcontains $exp.source) {
                         $entry.TelemetrySources.Add($exp.source)
@@ -103,7 +103,7 @@ function Get-TackleboxCoverage {
                 $stepAtomicId = $step.atomic
                 $matchingRows = $atomics | Where-Object { $_.Id -eq $stepAtomicId }
                 foreach ($row in $matchingRows) {
-                    if ($row.Chokepoint -and $coverage.ContainsKey($row.Chokepoint)) {
+                    if ($row.Chokepoint -and $coverage.Contains($row.Chokepoint)) {
                         $entry = $coverage[$row.Chokepoint]
                         if ($entry.Rigs -notcontains $rig.Name) {
                             $entry.Rigs.Add($rig.Name)
@@ -132,7 +132,7 @@ function Get-TackleboxCoverage {
 
                 $matchingRows = $atomics | Where-Object { $_.Id -eq $atomicId }
                 foreach ($row in $matchingRows) {
-                    if ($row.Chokepoint -and $coverage.ContainsKey($row.Chokepoint)) {
+                    if ($row.Chokepoint -and $coverage.Contains($row.Chokepoint)) {
                         $entry = $coverage[$row.Chokepoint]
                         $entry.Validated = $true
                         $hitTs = ($hits | Sort-Object { $_.ts } | Select-Object -Last 1).ts

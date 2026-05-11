@@ -66,6 +66,7 @@ atomic_tests:
     & (Get-Module Tacklebox) {
         $script:TackleboxModuleRoot = $env:TACKLEBOX_HOME
     }
+    Copy-Item -Path (Join-Path $script:RepoRoot 'schema') -Destination $script:TempHome -Recurse -Force
 }
 
 AfterAll {

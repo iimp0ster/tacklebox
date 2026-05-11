@@ -101,7 +101,7 @@ function Invoke-TackleboxRig {
     $steps   = @($rigData.steps)
     $stopOnErrorEffective = if ($StopOnError.IsPresent) {
         $StopOnError.ToBool()
-    } elseif ($rigData.ContainsKey('stop_on_error')) {
+    } elseif ($rigData.Contains('stop_on_error')) {
         [bool]$rigData.stop_on_error
     } else {
         $true
@@ -112,14 +112,14 @@ function Invoke-TackleboxRig {
     if (-not $RunId) { $RunId = [guid]::NewGuid().ToString() }
 
     Write-Host "`nRig: $rigId  ($mode)  RunId: $RunId" -ForegroundColor Cyan
-    if ($rigData.ContainsKey('ua_profile'))     { Write-Host "  UA profile  : $($rigData.ua_profile)" }
-    if ($rigData.ContainsKey('egress_profile')) { Write-Host "  Egress      : $($rigData.egress_profile)" }
+    if ($rigData.Contains('ua_profile'))     { Write-Host "  UA profile  : $($rigData.ua_profile)" }
+    if ($rigData.Contains('egress_profile')) { Write-Host "  Egress      : $($rigData.egress_profile)" }
     Write-Host "  Steps       : $($steps.Count)"
 
     # ── 4. Plumb UA profile into environment if applicable ───────────────────
 
     $uaString = $null
-    if ($rigData.ContainsKey('ua_profile') -and $rigData.ua_profile) {
+    if ($rigData.Contains('ua_profile') -and $rigData.ua_profile) {
         $uaString = Resolve-UaProfile -Name $rigData.ua_profile
     }
 
@@ -140,7 +140,7 @@ function Invoke-TackleboxRig {
         $step      = $steps[$i]
         $stepNum   = $i + 1
         $atomicRef = $step.atomic
-        $stepArgs  = if ($step.ContainsKey('args') -and $step.args) {
+        $stepArgs  = if ($step.Contains('args') -and $step.args) {
             # Convert from ordered dict to hashtable
             $ht = @{}
             foreach ($k in $step.args.Keys) { $ht[$k] = [string]$step.args[$k] }
@@ -148,15 +148,15 @@ function Invoke-TackleboxRig {
         } else { @{} }
 
         # Inject UA into args if the atomic uses #{user_agent}
-        if ($uaString -and -not $stepArgs.ContainsKey('user_agent')) {
+        if ($uaString -and -not $stepArgs.Contains('user_agent')) {
             $stepArgs['user_agent'] = $uaString
         }
 
         # Resolve token from a previous step if declared
         $stepTokenKey = $null
-        if ($step.ContainsKey('requires_token_from') -and $step.requires_token_from) {
+        if ($step.Contains('requires_token_from') -and $step.requires_token_from) {
             $srcAtomic = $step.requires_token_from
-            if ($tokenKeysByAtomic.ContainsKey($srcAtomic)) {
+            if ($tokenKeysByAtomic.Contains($srcAtomic)) {
                 $stepTokenKey = $tokenKeysByAtomic[$srcAtomic]
             } else {
                 Write-Warning "Step $stepNum ($atomicRef): requires_token_from '$srcAtomic' but no token key was recorded from that step. Proceeding without pre-resolved token."
@@ -164,14 +164,14 @@ function Invoke-TackleboxRig {
         }
 
         Write-Host "`n  [Step $stepNum/$($steps.Count)] $atomicRef" -ForegroundColor Yellow
-        if ($step.ContainsKey('test_name')) { Write-Host "    Test: $($step.test_name)" }
+        if ($step.Contains('test_name')) { Write-Host "    Test: $($step.test_name)" }
 
         $invokeParams = @{
             Atomic  = $atomicRef
             RunId   = $RunId
             InputArgs = $stepArgs
         }
-        if ($step.ContainsKey('test_name') -and $step.test_name) {
+        if ($step.Contains('test_name') -and $step.test_name) {
             $invokeParams['TestName'] = $step.test_name
         }
         if ($stepTokenKey)   { $invokeParams['TokenCacheKey']  = $stepTokenKey }
