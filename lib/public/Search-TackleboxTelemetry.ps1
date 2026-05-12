@@ -66,6 +66,12 @@ function Search-TackleboxTelemetry {
     $results      = [System.Collections.Generic.List[object]]::new()
     $pollInterval = 30   # seconds between retries
 
+    # Pre-check auth contexts once per source type to surface clear guidance early.
+    $graphChecked = $false
+    $graphReady   = $false
+    $exoChecked   = $false
+    $exoReady     = $false
+
     foreach ($exp in $expectations) {
         $expSource = $exp.source
         $expMatch  = if ($exp.ContainsKey('match') -and $exp.match -is [hashtable]) {
@@ -76,8 +82,52 @@ function Search-TackleboxTelemetry {
         $expBudget   = if ($exp.ContainsKey('within_minutes')) { $exp.within_minutes } else { $WaitMinutes }
         $expDeadline = $castTime.AddMinutes($expBudget)
 
+        # Auth readiness check — done once per source family, short-circuit with clear message.
+        if ($expSource -in 'entra_signin', 'graph_audit') {
+            if (-not $graphChecked) {
+                $graphReady   = $null -ne (Get-MgContext -ErrorAction SilentlyContinue)
+                $graphChecked = $true
+                if (-not $graphReady) {
+                    Write-Warning "Search-TackleboxTelemetry: Microsoft Graph not connected. Run: Connect-MgGraph -Scopes 'AuditLog.Read.All' then re-run -Validate."
+                }
+            }
+            if (-not $graphReady) {
+                $results.Add([pscustomobject]@{
+                    Source       = $expSource
+                    Matched      = $false
+                    MatchedEvent = $null
+                    Expectation  = $expMatch
+                    Budget       = $expBudget
+                    Error        = 'Graph not connected'
+                })
+                continue
+            }
+        }
+
+        if ($expSource -in 'ual', 'exo_audit') {
+            if (-not $exoChecked) {
+                $exoReady   = $null -ne (Get-ConnectionInformation -ErrorAction SilentlyContinue)
+                $exoChecked = $true
+                if (-not $exoReady) {
+                    Write-Warning "Search-TackleboxTelemetry: Exchange Online not connected. Run: Connect-ExchangeOnline then re-run -Validate."
+                }
+            }
+            if (-not $exoReady) {
+                $results.Add([pscustomobject]@{
+                    Source       = $expSource
+                    Matched      = $false
+                    MatchedEvent = $null
+                    Expectation  = $expMatch
+                    Budget       = $expBudget
+                    Error        = 'EXO not connected'
+                })
+                continue
+            }
+        }
+
         $matched      = $false
         $matchedEvent = $null
+        $queryError   = $null
 
         Write-Verbose "[$expSource] polling until $($expDeadline.ToString('HH:mm:ss')) UTC..."
 
@@ -96,10 +146,16 @@ function Search-TackleboxTelemetry {
                     $matchedEvent = $hit
                 }
             } catch {
-                Write-Warning "[$expSource] query error: $($_.Exception.Message)"
+                $msg = $_.Exception.Message
+                if ($msg -match 'BadRequest') {
+                    $queryError = $msg
+                    Write-Warning "[$expSource] query returned BadRequest: $msg"
+                    break
+                }
+                Write-Warning "[$expSource] query error: $msg"
             }
 
-            if (-not $matched) {
+            if (-not $matched -and -not $queryError) {
                 $remainingSec = [math]::Max(0, [math]::Round(($expDeadline - (Get-Date).ToUniversalTime()).TotalSeconds))
                 if ($remainingSec -gt 0) {
                     Write-Verbose "[$expSource] no match yet; ${remainingSec}s remaining."
@@ -127,6 +183,7 @@ function Search-TackleboxTelemetry {
             MatchedEvent = $matchedEvent
             Expectation  = $expMatch
             Budget       = $expBudget
+            Error        = $queryError
         }
         $results.Add($expResult)
     }

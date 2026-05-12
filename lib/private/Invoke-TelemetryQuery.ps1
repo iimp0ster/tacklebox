@@ -23,7 +23,6 @@ function Invoke-TackleboxEntraSigninQuery {
         $filterParts = @("createdDateTime ge $sinceStr")
 
         $fieldMap = @{
-            authenticationProtocol  = 'authenticationProtocol'
             conditionalAccessStatus = 'conditionalAccessStatus'
             riskLevelDuringSignIn   = 'riskLevelDuringSignIn'
             userPrincipalName       = 'userPrincipalName'
@@ -35,6 +34,8 @@ function Invoke-TackleboxEntraSigninQuery {
         foreach ($key in $Match.Keys) {
             if ($fieldMap.ContainsKey($key)) {
                 $filterParts += "$($fieldMap[$key]) eq '$($Match[$key])'"
+            } else {
+                Write-Verbose "entra_signin: skipping unknown match key '$key' (not a supported signIn filter field)"
             }
         }
 

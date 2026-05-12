@@ -166,6 +166,20 @@ function Invoke-Tacklebox {
         }
     }
 
+    # Auto-wire tenant_id from config when the YAML default is the empty-GUID sentinel
+    # and the caller did not supply an explicit override via -InputArgs.
+    $cfgForTenant = Read-TackleboxConfig
+    if ($cfgForTenant -and $cfgForTenant.tenant_id) {
+        $sentinel = '00000000-0000-0000-0000-000000000000'
+        foreach ($key in @('tenant_id')) {
+            if ($resolvedArgs.Contains($key) -and
+                -not $InputArgs.Contains($key) -and
+                $resolvedArgs[$key] -eq $sentinel) {
+                $resolvedArgs[$key] = $cfgForTenant.tenant_id
+            }
+        }
+    }
+
     # ── 5. Lab-tenant guard (Cast/Validate only) ──────────────────────────────
 
     if ($mode -in 'Cast', 'Validate') {
@@ -306,9 +320,12 @@ function Invoke-Tacklebox {
 
         if ($executorName -eq 'powershell') {
             Write-Verbose "Invoking PowerShell executor for '$atomicId'..."
-            $execOutput = & pwsh -NonInteractive -NoProfile -Command $resolvedCommand 2>&1
-            if ($LASTEXITCODE -ne 0) {
-                $execError = "Executor exited with code $LASTEXITCODE. Output: $(($execOutput | Out-String).Trim())"
+            $LASTEXITCODE = 0
+            $sb = [scriptblock]::Create($resolvedCommand)
+            $execOutput = & $sb 2>&1
+            $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+            if ($exitCode -ne 0) {
+                $execError = "Executor exited with code $exitCode. Output: $(($execOutput | Out-String).Trim())"
             }
         } elseif ($executorName -in 'sh', 'bash') {
             if ($IsWindows) {

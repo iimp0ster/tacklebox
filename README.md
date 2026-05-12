@@ -41,8 +41,8 @@ The project is still lab-focused and actively evolving. Cmdlet interfaces are st
 ### Prerequisites
 
 - PowerShell 7.2+ (`pwsh`) on Windows, Linux, or macOS.
-- Python 3 and `pipx` on your PATH (required for `roadtools` / `roadtx`).
-- An Entra ID lab tenant you own and control.
+- Python 3 and `pipx` on your PATH (required for `roadtx`).
+- An Entra ID lab tenant you own and control, with `AuditLog.Read.All` permissions for telemetry validation.
 - `git` on your PATH.
 
 ### 1. Clone and import
@@ -90,7 +90,7 @@ Install-TackleboxDependencies -Component exchangeonlinemanagement # PowerShell G
 Install-TackleboxDependencies -Component aadinternals             # PowerShell Gallery
 ```
 
-`roadtx` requires `pipx`. If `pipx` is not on your PATH the cmdlet warns and skips that component; install `pipx` first (`pip install pipx`).
+`roadtx` requires `pipx`. If `pipx` is not on your PATH the cmdlet warns and skips that component; install `pipx` first (`pip install pipx`). The installer also pre-seeds `packaging` and `setuptools` into the roadtx venv so minimal Python environments don't fail at runtime.
 
 ### 4. Discover what's implemented
 
@@ -128,6 +128,9 @@ Invoke-TackleboxRig -Rig tycoon -DryRun
 Once your lab tenant is confirmed and dependencies are installed:
 
 ```powershell
+# Connect to Microsoft Graph for telemetry validation (needed for -Validate)
+Connect-MgGraph -Scopes 'AuditLog.Read.All'
+
 # Pre-authenticate when an atomic declares requires_token
 Get-TackleboxToken -AuthProfile device-code -TenantId <lab-tenant-guid>
 
@@ -137,6 +140,8 @@ Invoke-Tacklebox -Atomic T1078.004-device-code -Validate
 # Run a full rig in validate mode
 Invoke-TackleboxRig -Rig tycoon -Validate
 ```
+
+Atomics that declare a `tenant_id` input argument automatically inherit the value from `~/.tacklebox/config.json` — no need to pass `-InputArgs @{tenant_id='...'}` explicitly. An explicit `-InputArgs` value always takes precedence if you need to override.
 
 `-Validate` runs the atomic then calls `Search-TackleboxTelemetry` automatically, polling until each `expected_telemetry` entry is matched or its `within_minutes` budget expires. You can also call `Search-TackleboxTelemetry` directly by `RunId` to re-query after the fact:
 

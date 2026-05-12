@@ -182,6 +182,49 @@ Describe 'Invoke-Tacklebox – multi-test atomic' -Tag 'InvokeTacklebox', 'Multi
     }
 }
 
+Describe 'Invoke-Tacklebox – tenant_id auto-wire' -Tag 'InvokeTacklebox', 'TenantAutowire' {
+
+    BeforeAll {
+        $script:TenantWireYaml = @'
+attack_technique: T1078.004
+display_name: "Tenant Wire Test"
+atomic_tests:
+  - name: "tenant-wire-test"
+    auto_generated_guid: ccccdddd-eeee-ffff-0000-111122223333
+    description: "Test tenant_id auto-wiring"
+    supported_platforms: [windows, linux, macos]
+    input_arguments:
+      tenant_id:
+        description: "Lab tenant GUID"
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+    executor:
+      name: powershell
+      command: "Write-Output '#{tenant_id}'"
+    requires_token: false
+'@
+        New-TestAtomic -Id 'T9010-tenant-wire' -Yaml $script:TenantWireYaml
+
+        $script:TenantWireConfigPath = Join-Path $script:TempHome 'config.json'
+        @{ tenant_id = 'aabbccdd-1234-5678-abcd-ef0123456789'; tenant_name = 'tacklebox-lab.onmicrosoft.com'; lab_allow_list = @('aabbccdd-1234-5678-abcd-ef0123456789') } |
+            ConvertTo-Json | Set-Content -LiteralPath $script:TenantWireConfigPath
+    }
+
+    AfterAll {
+        Remove-Item -LiteralPath $script:TenantWireConfigPath -Force -ErrorAction SilentlyContinue
+    }
+
+    It 'replaces empty-GUID sentinel with config tenant_id in DryRun output' {
+        $r = Invoke-Tacklebox -Atomic 'T9010-tenant-wire' -DryRun
+        $r.InputArgs['tenant_id'] | Should -Be 'aabbccdd-1234-5678-abcd-ef0123456789'
+    }
+
+    It 'does not replace tenant_id when caller supplies an explicit value' {
+        $r = Invoke-Tacklebox -Atomic 'T9010-tenant-wire' -DryRun -InputArgs @{ tenant_id = 'custom-guid-value' }
+        $r.InputArgs['tenant_id'] | Should -Be 'custom-guid-value'
+    }
+}
+
 Describe 'Invoke-Tacklebox – lab-guard enforcement' -Tag 'InvokeTacklebox', 'LabGuard' {
 
     BeforeAll {

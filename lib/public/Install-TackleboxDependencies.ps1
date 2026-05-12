@@ -151,5 +151,11 @@ function Install-PipxPackage {
         } else {
             & pipx install $spec 2>&1 | Where-Object { $_ -notmatch 'already installed' } | ForEach-Object { Write-Verbose $_ }
         }
+        if ($Manifest.name -eq 'roadtx') {
+            $pipxOut = & pipx runpip roadtx install packaging setuptools 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "[roadtx] post-install step failed (exit $LASTEXITCODE): $pipxOut"
+            }
+        }
     }
 }

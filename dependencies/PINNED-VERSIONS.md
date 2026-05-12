@@ -17,7 +17,7 @@ Quarterly upstream-tool-version review is a v1.1 maintenance task.
 
 | Dependency                  | Version / SHA                                  | Source                                              | Manifest                                |
 | --------------------------- | ---------------------------------------------- | --------------------------------------------------- | --------------------------------------- |
-| roadtools (`roadtx`)        | `1.7.0`                                        | PyPI `roadtools`                                    | `manifests/roadtx.json`                 |
+| roadtx                      | `1.21.1`                                       | PyPI `roadtx`                                       | `manifests/roadtx.json`                 |
 | TokenTacticsV2              | `9e85a1c`                                      | https://github.com/f-bader/TokenTacticsV2           | `manifests/tokentacticsv2.json`         |
 | GraphRunner                 | `bd4231f`                                      | https://github.com/dafthack/GraphRunner             | `manifests/graphrunner.json`            |
 | AADInternals                | `0.9.6`                                        | PowerShell Gallery                                  | `manifests/aadinternals.json`           |
