@@ -1,5 +1,9 @@
 # Tacklebox
 
+<p align="center">
+  <img src="docs/assets/tacklebox-logo.png" alt="Tacklebox — 16-bit pixel art logo of an open tacklebox with AiTM kit lures" width="256" />
+</p>
+
 > AiTM phishing kit emulation framework for M365 / Entra detection engineering.
 > Every lure, every hook, every kit. One tacklebox.
 
@@ -27,7 +31,7 @@ If no signal matches, the cmdlet throws and refuses to run. The escape hatch —
 
 | Surface | What's shipped |
 |---|---|
-| **Cmdlets** | `Invoke-Tacklebox`, `Invoke-TackleboxRig`, `Get-Tackle`, `Get-TackleboxToken`, `Search-TackleboxTelemetry`, `Get-TackleboxCoverage`, `Test-TackleboxLab`, `Install-TackleboxDependencies` |
+| **Cmdlets** | `Invoke-Tacklebox`, `Invoke-TackleboxRig`, `Get-Tackle`, `Get-TackleboxToken`, `Search-TackleboxTelemetry`, `Get-TackleboxCoverage`, `Test-TackleboxLab`, `Install-TackleboxDependencies`, `Show-TackleboxBanner` |
 | **Atomics** | Initial set across T1078.001, T1078.004, T1087.004, T1098.005, T1114.002, T1114.003, T1213.002, T1528, T1534, T1539, T1550.001, T1566.002, T1621 |
 | **Rigs** | Tycoon 2FA, Mamba 2FA, EvilProxy kit profiles |
 | **Telemetry sources** | Entra sign-in logs, Unified Audit Log, Microsoft Graph directory audit, Exchange Online audit |
@@ -54,7 +58,7 @@ pwsh
 Import-Module ./Tacklebox.psd1 -Force
 ```
 
-On import the module warns if no lab tenant is configured. That warning is expected until you complete the next step.
+On import the module displays the ASCII banner and warns if no lab tenant is configured. The banner can be suppressed by setting `$env:TACKLEBOX_NO_BANNER = '1'` before importing (useful in scripts and CI). The tenant warning is expected until you complete the next step.
 
 ### 2. Configure your lab tenant
 
@@ -129,7 +133,9 @@ Once your lab tenant is confirmed and dependencies are installed:
 
 ```powershell
 # Connect to Microsoft Graph for telemetry validation (needed for -Validate)
-Connect-MgGraph -Scopes 'AuditLog.Read.All'
+# Pass -TenantId explicitly to ensure the context is your Entra lab tenant,
+# not a personal MSA account (which does not have access to sign-in logs).
+Connect-MgGraph -TenantId <lab-tenant-guid> -Scopes 'AuditLog.Read.All'
 
 # Pre-authenticate when an atomic declares requires_token
 Get-TackleboxToken -AuthProfile device-code -TenantId <lab-tenant-guid>
@@ -143,11 +149,13 @@ Invoke-TackleboxRig -Rig tycoon -Validate
 
 Atomics that declare a `tenant_id` input argument automatically inherit the value from `~/.tacklebox/config.json` — no need to pass `-InputArgs @{tenant_id='...'}` explicitly. An explicit `-InputArgs` value always takes precedence if you need to override.
 
-`-Validate` runs the atomic then calls `Search-TackleboxTelemetry` automatically, polling until each `expected_telemetry` entry is matched or its `within_minutes` budget expires. You can also call `Search-TackleboxTelemetry` directly by `RunId` to re-query after the fact:
+`-Validate` runs the atomic then calls `Search-TackleboxTelemetry` automatically. While polling, a `Write-Progress` bar displays the current expectation, source, and elapsed time so the run never looks hung. Polling continues until each `expected_telemetry` entry is matched or its `within_minutes` budget expires. You can also call `Search-TackleboxTelemetry` directly by `RunId` to re-query after the fact:
 
 ```powershell
 Search-TackleboxTelemetry -RunId <guid>
 ```
+
+> **Tenant licensing note.** `entra_signin` telemetry requires an Entra ID Premium P1 (or higher) license on the lab tenant. Without it, `Search-TackleboxTelemetry` will surface a `Authentication_RequestFromNonPremiumTenantOrB2CTenant` warning and mark those expectations as missed. The cast itself still succeeds and is logged. Activate a Microsoft 365 E5 developer trial on the tenant to enable the sign-in log API.
 
 ---
 
@@ -213,7 +221,25 @@ Tacklebox is an orchestration and telemetry-validation framework, not an attack-
 Invoke-Pester -Configuration (& ./tests/pester.config.ps1)
 ```
 
-Tests use a temporary `TACKLEBOX_HOME` pointed at a scratch directory and set `TACKLEBOX_LAB_OVERRIDE=1` so they never touch a real tenant or token cache. Output is `Detailed` by default and writes `TestResults.xml` (NUnit format) alongside `coverage.xml` (JaCoCo, disabled by default).
+Tests use a temporary `TACKLEBOX_HOME` pointed at a scratch directory and set `TACKLEBOX_LAB_OVERRIDE=1` so they never touch a real tenant or token cache. `TACKLEBOX_NO_BANNER=1` is also set automatically by the Pester config to suppress the ASCII banner during test output. Output is `Detailed` by default and writes `TestResults.xml` (NUnit format) alongside `coverage.xml` (JaCoCo, disabled by default).
+
+### Banner
+
+The ASCII banner is displayed automatically on `Import-Module` in interactive sessions. Suppress it with:
+
+```powershell
+$env:TACKLEBOX_NO_BANNER = '1'
+Import-Module ./Tacklebox.psd1 -Force
+```
+
+You can also call `Show-TackleboxBanner` directly, or use `-Compact` for narrow terminals:
+
+```powershell
+Show-TackleboxBanner           # full 80-column banner
+Show-TackleboxBanner -Compact  # condensed ~50-column variant
+```
+
+The static pixel art logo lives at [`docs/assets/tacklebox-logo.png`](docs/assets/tacklebox-logo.png) and the plain-text banner source at [`docs/assets/tacklebox-banner.txt`](docs/assets/tacklebox-banner.txt).
 
 ### Linting
 
