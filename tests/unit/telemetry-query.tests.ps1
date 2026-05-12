@@ -77,14 +77,14 @@ Describe 'Search-TackleboxTelemetry – auth pre-check' -Tag 'TelemetryQuery', '
         New-Item -ItemType Directory -Path $runsDir -Force | Out-Null
         Set-Content -LiteralPath (Join-Path $runsDir "$($script:TestRunId).jsonl") -Value $castEvent
 
-        # Inject Get-MgContext stub so Mock can wrap it.
-        InModuleScope Tacklebox {
-            function Get-MgContext { $null }
-        }
     }
 
     It 'returns Matched=false with Error="Graph not connected" when Get-MgContext returns null' {
-        Mock -ModuleName Tacklebox Get-MgContext { return $null }
+        # Define the stub inside InModuleScope so it works even when the Graph
+        # module is not installed (Mock requires the command to already exist).
+        InModuleScope Tacklebox {
+            function Get-MgContext { $null }
+        }
 
         $results = Search-TackleboxTelemetry -RunId $script:TestRunId -WaitMinutes 0
         $results | Should -Not -BeNullOrEmpty
