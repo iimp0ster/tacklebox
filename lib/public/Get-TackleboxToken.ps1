@@ -137,14 +137,15 @@ function Get-TackleboxToken {
     Write-Host "Authenticating with profile '$AuthProfile' for tenant '$tenantId'..." -ForegroundColor Cyan
 
     if ($PSCmdlet.ShouldProcess($resolvedKey, "Get-TackleboxToken ($AuthProfile)")) {
-        $output = & pwsh -NonInteractive -NoProfile -Command $cmd 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            $err = ($output | Out-String).Trim()
-            throw "Authentication failed (exit $LASTEXITCODE): $err"
+        & pwsh -NonInteractive -NoProfile -Command $cmd
+        $exitCode = $LASTEXITCODE
+
+        if ($exitCode -ne 0) {
+            throw "Authentication failed (exit $exitCode). Re-run with -Verbose or invoke the following command directly for more detail:`n$cmd"
         }
 
         if (-not (Test-Path -LiteralPath $tokenOutputPath)) {
-            throw "roadtx did not write a token file to '$tokenOutputPath'. Check output: $($output | Out-String)"
+            throw "roadtx did not write a token file to '$tokenOutputPath'."
         }
 
         Write-Host "Token cached at key '$resolvedKey'." -ForegroundColor Green

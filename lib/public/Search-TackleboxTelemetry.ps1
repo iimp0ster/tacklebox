@@ -65,6 +65,8 @@ function Search-TackleboxTelemetry {
 
     $results      = [System.Collections.Generic.List[object]]::new()
     $pollInterval = 30   # seconds between retries
+    $total        = $expectations.Count
+    $index        = 0
 
     # Pre-check auth contexts once per source type to surface clear guidance early.
     $graphChecked = $false
@@ -73,6 +75,7 @@ function Search-TackleboxTelemetry {
     $exoReady     = $false
 
     foreach ($exp in $expectations) {
+        $index++
         $expSource = $exp.source
         $expMatch  = if ($exp.ContainsKey('match') -and $exp.match -is [hashtable]) {
             $exp.match
@@ -132,6 +135,16 @@ function Search-TackleboxTelemetry {
         Write-Verbose "[$expSource] polling until $($expDeadline.ToString('HH:mm:ss')) UTC..."
 
         while ((Get-Date).ToUniversalTime() -lt $expDeadline -and -not $matched) {
+            $now          = (Get-Date).ToUniversalTime()
+            $elapsedSinceCast = $now - $castTime
+            $totalBudgetSec   = [math]::Max(1, [int]($expBudget * 60))
+            $elapsedSec       = [math]::Max(0, [int][math]::Round($elapsedSinceCast.TotalSeconds))
+            $percent          = [math]::Min(100, [int][math]::Round(100 * $elapsedSec / $totalBudgetSec))
+            $statusLine       = "Expectation $index of $total  |  Source: $expSource  |  Elapsed: ${elapsedSec}s of $($expBudget*60)s"
+
+            Write-Progress -Activity "Validating telemetry for RunId $RunId" `
+                           -Status   $statusLine `
+                           -PercentComplete $percent
             try {
                 $hit = switch ($expSource) {
                     'entra_signin' { Invoke-TackleboxEntraSigninQuery -Match $expMatch -Since $castTime }
@@ -187,6 +200,8 @@ function Search-TackleboxTelemetry {
         }
         $results.Add($expResult)
     }
+
+    Write-Progress -Activity "Validating telemetry for RunId $RunId" -Completed
 
     return $results.ToArray()
 }

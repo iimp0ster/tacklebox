@@ -311,6 +311,15 @@ function Invoke-Tacklebox {
 
     Write-RunLog -RunId $RunId -Kind 'cast-start' -Atomic $atomicId -Data $castData
 
+    if ($mode -eq 'Cast') {
+        Write-Host "`nCAST: $atomicId  (RunId: $RunId)" -ForegroundColor Cyan
+    } elseif ($mode -eq 'Validate') {
+        Write-Host "`nVALIDATE: $atomicId  (RunId: $RunId)" -ForegroundColor Cyan
+    }
+    Write-Host "  Executor : $($selectedTest.executor.name)"
+    Write-Host "  Command  :"
+    ($resolvedCommand.Trim() -split "`n") | ForEach-Object { Write-Host "    $_" }
+
     $startTime = Get-Date
     $execError = $null
     $execOutput = $null
@@ -321,11 +330,12 @@ function Invoke-Tacklebox {
         if ($executorName -eq 'powershell') {
             Write-Verbose "Invoking PowerShell executor for '$atomicId'..."
             $LASTEXITCODE = 0
-            $sb = [scriptblock]::Create($resolvedCommand)
-            $execOutput = & $sb 2>&1
-            $exitCode = if ($null -ne $LASTEXITCODE) { $LASTEXITCODE } else { 0 }
+            # Run in a child pwsh so interactive/CLI tools (e.g., roadtx) can stream
+            # their own progress and prompts directly to the console.
+            & pwsh -NonInteractive -NoProfile -Command $resolvedCommand
+            $exitCode = $LASTEXITCODE
             if ($exitCode -ne 0) {
-                $execError = "Executor exited with code $exitCode. Output: $(($execOutput | Out-String).Trim())"
+                $execError = "Executor exited with code $exitCode. Re-run with -Verbose for more detail."
             }
         } elseif ($executorName -in 'sh', 'bash') {
             if ($IsWindows) {
@@ -358,6 +368,8 @@ function Invoke-Tacklebox {
 
     if ($execError) {
         Write-Warning "Atomic '$atomicId' execution failed: $execError"
+    } else {
+        Write-Host "Atomic '$atomicId' execution complete in $([math]::Round($result.Duration.TotalSeconds,2))s (status: $($result.Status))." -ForegroundColor Green
     }
 
     # ── 11. Validate: poll for telemetry ─────────────────────────────────────

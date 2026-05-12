@@ -217,13 +217,12 @@ function Invoke-TackleboxRig {
 
     # ── 6. Aggregate and return ───────────────────────────────────────────────
 
-    $succeeded = @($stepResults | Where-Object { $_.Status -in 'cast-complete', 'validated', 'dry-run' }).Count
-    $failed    = @($stepResults | Where-Object { $_.Status -in 'failed', 'error' }).Count
+    $succeeded     = @($stepResults | Where-Object { $_.Status -in 'cast-complete', 'validated', 'dry-run' }).Count
+    $failed        = @($stepResults | Where-Object { $_.Status -in 'failed', 'error' }).Count
     $overallStatus = if ($failed -gt 0) { 'partial' } else { 'complete' }
+    $statusColor   = if ($failed -eq 0) { 'Green' } else { 'Yellow' }
 
-    Write-Host "`nRig '$rigId' ${overallStatus}: $succeeded/$($stepResults.Count) steps succeeded." -ForegroundColor (
-        if ($failed -eq 0) { 'Green' } else { 'Yellow' }
-    )
+    Write-Host "`nRig '$rigId' ${overallStatus}: $succeeded/$($stepResults.Count) steps succeeded." -ForegroundColor $statusColor
 
     return [pscustomobject]@{
         RigId       = $rigId
