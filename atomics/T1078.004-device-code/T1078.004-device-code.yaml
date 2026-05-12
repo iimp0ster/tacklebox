@@ -53,12 +53,12 @@ atomic_tests:
     expected_telemetry:
       - source: entra_signin
         match:
-          authenticationProtocol: "deviceCode"
+          clientAppUsed: "Mobile Apps and Desktop clients"
           conditionalAccessStatus: "success"
         within_minutes: 15
       - source: entra_signin
         match:
-          authenticationProtocol: "deviceCode"
+          clientAppUsed: "Mobile Apps and Desktop clients"
           riskLevelDuringSignIn: "none"
         within_minutes: 15
     exercises_chokepoint:
