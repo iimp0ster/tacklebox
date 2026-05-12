@@ -21,7 +21,8 @@
         'Search-TackleboxTelemetry',
         'Test-TackleboxLab',
         'Get-TackleboxCoverage',
-        'Install-TackleboxDependencies'
+        'Install-TackleboxDependencies',
+        'Show-TackleboxBanner'
     )
     CmdletsToExport      = @()
     VariablesToExport    = @()
