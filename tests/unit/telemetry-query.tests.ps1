@@ -80,15 +80,18 @@ Describe 'Search-TackleboxTelemetry – auth pre-check' -Tag 'TelemetryQuery', '
     }
 
     It 'returns Matched=false with Error="Graph not connected" when Get-MgContext returns null' {
-        # Define the stub inside InModuleScope so it works even when the Graph
-        # module is not installed (Mock requires the command to already exist).
-        InModuleScope Tacklebox {
+        # Run everything inside InModuleScope so the Get-MgContext stub is
+        # guaranteed to be in scope when Search-TackleboxTelemetry calls it.
+        # Pass RunId via -Parameters because $script: inside InModuleScope
+        # refers to the module's script scope, not the test file's.
+        InModuleScope Tacklebox -Parameters @{ RunId = $script:TestRunId } {
+            param($RunId)
             function Get-MgContext { $null }
-        }
 
-        $results = Search-TackleboxTelemetry -RunId $script:TestRunId -WaitMinutes 0
-        $results | Should -Not -BeNullOrEmpty
-        $results[0].Matched | Should -BeFalse
-        $results[0].Error   | Should -Be 'Graph not connected'
+            $results = Search-TackleboxTelemetry -RunId $RunId -WaitMinutes 0
+            $results | Should -Not -BeNullOrEmpty
+            $results[0].Matched | Should -BeFalse
+            $results[0].Error   | Should -Be 'Graph not connected'
+        }
     }
 }
