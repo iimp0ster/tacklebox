@@ -43,7 +43,13 @@ function Invoke-TackleboxEntraSigninQuery {
         $hits = Get-MgAuditLogSignIn -Filter $filter -Top 5 -ErrorAction Stop
         return if ($hits) { $hits[0] } else { $null }
     } catch {
-        Write-Warning "Entra sign-in query failed: $($_.Exception.Message)"
+        $msg = $_.Exception.Message
+        if ($msg -match 'This API is not supported for MSA accounts') {
+            # Surface a structured error so the polling loop can stop immediately
+            throw "MSA_NOT_SUPPORTED: $msg"
+        }
+
+        Write-Warning "Entra sign-in query failed: $msg"
         return $null
     }
 }
