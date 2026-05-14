@@ -236,7 +236,7 @@ You can also call `Show-TackleboxBanner` directly, or use `-Compact` for narrow 
 
 ```powershell
 Show-TackleboxBanner           # full 80-column banner
-Show-TackleboxBanner -Compact  # condensed ~50-column variant
+Show-TackleboxBanner -Compact  # condensed ~65-column variant
 ```
 
 The static pixel art logo lives at [`docs/assets/tacklebox-logo.png`](docs/assets/tacklebox-logo.png) and the plain-text banner source at [`docs/assets/tacklebox-banner.txt`](docs/assets/tacklebox-banner.txt).
