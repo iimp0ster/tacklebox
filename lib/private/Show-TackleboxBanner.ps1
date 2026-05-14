@@ -41,37 +41,31 @@ function Show-TackleboxBanner {
         return
     }
 
-    # Full banner — designed for 80-column terminals
-    Write-Host ""
-    Write-Host "   ######   ##    ####  ##  ##  ##     ######  #####   ####   ##  ##" -ForegroundColor Cyan
-    Write-Host "     ##    ####  ##  ## ## ##   ##     ##      ##  ## ##  ##   ####" -ForegroundColor Cyan
-    Write-Host "     ##   ##  ## ##     ####    ##     ####    #####  ##  ##    ##" -ForegroundColor Cyan
-    Write-Host "     ##   ###### ##  ## ## ##   ##     ##      ##  ## ##  ##   ####" -ForegroundColor Cyan
-    Write-Host "     ##   ##  ##  ####  ##  ##  ###### ######  #####   ####   ##  ##" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "          AiTM phishing kit emulation for M365 / Entra ID" -ForegroundColor Yellow
-    Write-Host ""
-
-    # Hooked fish — side-view with forked tail, dorsal fin, single eye
-    Write-Host "                                        |" -ForegroundColor White
-    Write-Host "                                        |" -ForegroundColor White
-    Write-Host "                                       \|/" -ForegroundColor White
-    Write-Host "                                        |" -ForegroundColor White
-    Write-Host "                                        J" -ForegroundColor Gray
-    Write-Host "                                       /" -ForegroundColor Gray
-    Write-Host "                    ___________________/" -ForegroundColor Gray
-    Write-Host "                   /     __                '-." -ForegroundColor Gray
-    Write-Host "                  /    /    \    O              '-." -ForegroundColor Gray
-    Write-Host "       /\        /    '------'                      |" -ForegroundColor Gray
-    Write-Host "      /  \      /                ~~~~~              |" -ForegroundColor Gray
-    Write-Host "     /    \----<                                     >-->" -ForegroundColor Gray
-    Write-Host "     \    /     \                ~~~~~              |" -ForegroundColor Gray
-    Write-Host "      \  /       \                              .-'" -ForegroundColor Gray
-    Write-Host "       \/         \                         .-'" -ForegroundColor Gray
-    Write-Host "                   \_______________________/" -ForegroundColor Gray
-    Write-Host "                        /            \" -ForegroundColor Gray
-    Write-Host "              ~ ~ ~ ~ /~~~~~~~~~~~~~~~~\ ~ ~ ~ ~ ~" -ForegroundColor DarkCyan
-    Write-Host ""
-    Write-Host "  github.com/iimp0ster/tacklebox  |  lab-only, safety-gated" -ForegroundColor DarkGray
-    Write-Host ""
+    # Full banner — boxed design for 80-column UTF-8 terminals
+    Write-Host "╔══════════════════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║                                                                              ║" -ForegroundColor Cyan
+    Write-Host "║  ████████╗ █████╗  ██████╗██╗  ██╗██╗     ███████╗██████╗  ██████╗ ██╗  ██╗  ║" -ForegroundColor Cyan
+    Write-Host "║  ╚══██╔══╝██╔══██╗██╔════╝██║ ██╔╝██║     ██╔════╝██╔══██╗██╔═══██╗╚██╗██╔╝  ║" -ForegroundColor Cyan
+    Write-Host "║     ██║   ███████║██║     █████╔╝ ██║     █████╗  ██████╔╝██║   ██║ ╚███╔╝   ║" -ForegroundColor Cyan
+    Write-Host "║     ██║   ██╔══██║██║     ██╔═██╗ ██║     ██╔══╝  ██╔══██╗██║   ██║ ██╔██╗   ║" -ForegroundColor Cyan
+    Write-Host "║     ██║   ██║  ██║╚██████╗██║  ██╗███████╗███████╗██████╔╝╚██████╔╝██╔╝ ██╗  ║" -ForegroundColor Cyan
+    Write-Host "║     ╚═╝   ╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═════╝  ╚═════╝ ╚═╝  ╚═╝  ║" -ForegroundColor Cyan
+    Write-Host "║                                                                              ║" -ForegroundColor Cyan
+    Write-Host "╠══════════════════════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+    Write-Host "║≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋≋║" -ForegroundColor DarkCyan
+    Write-Host "║     °                                  │                              °    · ║" -ForegroundColor DarkCyan
+    Write-Host "║           ><(°>                     ╔══╧══╗                   °          ·   ║" -ForegroundColor DarkCyan
+    Write-Host "║                    ·                ║~=°=~║             ><((°>               ║" -ForegroundColor DarkCyan
+    Write-Host "║    °                                ╚══╤══╝                              ·   ║" -ForegroundColor DarkCyan
+    Write-Host "║              ·             °           J                    ·          °     ║" -ForegroundColor DarkCyan
+    Write-Host "║      ><(°>                          ><(°>                    ><(((°>         ║" -ForegroundColor DarkCyan
+    Write-Host "║            °                               ·      <°))><              ><(°>  ║" -ForegroundColor DarkCyan
+    Write-Host "║  · ><(((°>            ><((((°>                         ·            °        ║" -ForegroundColor DarkCyan
+    Write-Host "║             · ──────────────────────────────────────────── ><(°>             ║" -ForegroundColor DarkCyan
+    Write-Host "║              / ><(((((°>     ○                            \                  ║" -ForegroundColor DarkCyan
+    Write-Host "║              \──────────────────────────────────────────── /              ·  ║" -ForegroundColor DarkCyan
+    Write-Host "╠══════════════════════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+    Write-Host "║  AiTM phishing kit emulation  ·  M365 / Entra ID  ·  [ LAB ONLY ]            ║" -ForegroundColor Yellow
+    Write-Host "║  every lure · every hook · every kit · one tacklebox                         ║" -ForegroundColor Yellow
+    Write-Host "╚══════════════════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 }
