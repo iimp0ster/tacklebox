@@ -1,7 +1,7 @@
 # Tacklebox
 
 <p align="center">
-  <img src="docs/assets/tacklebox-logo.png" alt="Tacklebox — 16-bit pixel art logo of an open tacklebox with AiTM kit lures" width="256" />
+  <img src="docs/assets/tacklebox-logo.png" alt="Tacklebox — 16-bit pixel art logo of an open tacklebox with AiTM kit lures" width="512" />
 </p>
 
 > AiTM phishing kit emulation framework for M365 / Entra detection engineering.
