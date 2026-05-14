@@ -57,6 +57,12 @@ try {
     Write-Verbose -Message "Tacklebox: lab-tenant guard skipped at module load ($($_.Exception.Message))"
 }
 
+# Show banner on interactive import unless suppressed.
+# Set TACKLEBOX_NO_BANNER=1 to skip (e.g., in CI or scripts).
+if (-not $env:TACKLEBOX_NO_BANNER -and [Environment]::UserInteractive) {
+    Show-TackleboxBanner
+}
+
 Export-ModuleMember -Function @(
     'Invoke-Tacklebox',
     'Invoke-TackleboxRig',
@@ -66,5 +72,6 @@ Export-ModuleMember -Function @(
     'Search-TackleboxTelemetry',
     'Test-TackleboxLab',
     'Get-TackleboxCoverage',
-    'Install-TackleboxDependencies'
+    'Install-TackleboxDependencies',
+    'Show-TackleboxBanner'
 )

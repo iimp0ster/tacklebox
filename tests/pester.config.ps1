@@ -1,6 +1,9 @@
 # Pester configuration shared between unit and integration test runs.
 # Invoke with: Invoke-Pester -Configuration (& ./tests/pester.config.ps1)
 
+# Suppress the ASCII banner during test runs so output stays clean.
+$env:TACKLEBOX_NO_BANNER = '1'
+
 $config = New-PesterConfiguration
 
 $config.Run.Path        = @('./tests/unit')
