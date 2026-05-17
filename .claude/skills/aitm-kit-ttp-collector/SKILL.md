@@ -79,14 +79,27 @@ Every draft atomic carries `_mapping_confidence: low | medium | high`.
 - `low` -- T-ID is the analyst's best guess; **requires** at least one tier_1
   citation in `_citations` (validator enforces).
 
+Every atomic must also carry `_mapping_confidence_rationale`: a one-line
+justification for the chosen value. The validator rejects an atomic that
+sets `_mapping_confidence` without a non-empty rationale. This is a
+forcing function against default-picking `medium` off the cookbook.
+
 `low` confidence atomics are still draftable but flagged for explicit human
-review before promotion. This prevents pattern-matching the cookbook below
-without verification.
+review before promotion.
 
 ## Translation loop
 
 1. Identify the kit by fingerprint (URLScan / Sublime / Sekoia kit-fingerprint
-   table below).
+   table below). Pick the `<kit-slug>` for `intel/kits/<kit-slug>/` using
+   the **slug alignment rule**:
+   - If `rigs/<candidate>.yaml` already exists for this kit, use the same
+     stem (e.g. `tycoon`, not `tycoon-2fa`).
+   - Else, if any `atomics/T*-<candidate-fragment>*` directories suggest a
+     shared kit slug, align with that.
+   - Else, coin a new lowercase slug matching `^[a-z0-9][a-z0-9-]*$`.
+
+   This keeps the draft tree, eventual rig filename, and any consolidated
+   `atomic_tests[]` entries on the same identifier.
 2. Enumerate post-auth behaviors observable in the kit's backend or research
    grounding.
 3. Map each behavior to a MITRE T-ID with `_mapping_confidence`.
@@ -215,6 +228,7 @@ every atomic draft.
 attack_technique: T####
 display_name: <human-readable behavior>
 _mapping_confidence: medium  # low | medium | high
+_mapping_confidence_rationale: "<one-line justification for the T-ID choice -- validator rejects empty values>"
 _citations:
   - claim_type: kit_internals
     source_url: https://blog.sekoia.io/...
@@ -276,6 +290,17 @@ steps:
 
 ## Post-auth behaviors observed
 <enumerated list, each with grounding>
+
+## Lab-safe primitive vs. observed TTP
+<Required section. If any actual kit behavior cannot be lab-safely
+emulated (e.g. AiTM requires standing up a reverse-proxy relay; the
+framework deliberately does not), document the substitution here and
+note which draft atomic's executor uses the substitute. Example: "Tycoon
+captures session cookies via reverse-proxy AiTM relay. Tacklebox does
+not stand up a relay; T1539 draft emulates capture by performing an
+interactive signin from a Tacklebox client and persisting the cookie.
+Telemetry shape is similar but the relayed-signin UA pattern is
+absent.">
 
 ## Sources consulted
 - Tier 1: <list with URLs>

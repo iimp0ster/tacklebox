@@ -38,6 +38,21 @@ All four mappings carry `_mapping_confidence: medium`. None of the cited
 sources state the MITRE T-ID explicitly, so promotion to `high` requires a
 human MITRE-mapping review.
 
+## Lab-safe primitive vs. observed TTP
+
+EvilTokens is one of the rare kits where the actual TTP and the lab-safe
+emulation align cleanly. The kit calls Microsoft's real device-code
+endpoints; Tacklebox can do the same against a lab tenant without
+standing up any kit infrastructure. The four draft atomic executors map
+1:1 to wrap-tools (`TokenTacticsV2`, `AADInternals`, `roadtx`,
+`GraphRunner`) that drive Microsoft's own endpoints.
+
+No primitive substitution is in effect. The only divergence from a real
+EvilTokens compromise is the absence of the kit's operator-side
+dashboard (`/api/prt/cookie`, `/api/prt/refresh`, `/api/prt/recon`) --
+Tacklebox skips the relay and calls the Microsoft endpoints directly,
+which produces the same Entra telemetry on the victim tenant.
+
 ## Sources consulted
 
 Tier 1:

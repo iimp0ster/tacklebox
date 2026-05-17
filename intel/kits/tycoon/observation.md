@@ -36,6 +36,25 @@ to T1539 by consensus across Sekoia, Microsoft TI, and Push Security; the
 chained refresh-token pivot and rule creation are standard post-AiTM
 behaviors documented across the same sources.
 
+## Lab-safe primitive vs. observed TTP
+
+Tycoon 2FA captures session cookies via reverse-proxy AiTM relay. Tacklebox
+deliberately does **not** stand up a relay. The T1539 draft atomic emulates
+the capture step by performing an interactive Tacklebox-client signin and
+persisting the resulting Microsoft-issued cookie to disk for downstream
+replay. Telemetry shape is similar but not identical:
+
+- Present in both: signin record on the victim account, refresh-token
+  redemption to the chained resource, the inbox-rule audit event.
+- Absent in the lab-safe primitive: the relayed-signin UA pattern (kit
+  hosts pose as the legitimate Microsoft login page; lab-safe signin uses
+  the Tacklebox client UA), and the operator-side cookie marketplace
+  artifacts.
+
+A promoted Tycoon T1539 atomic should call this out in its `description`
+so reviewers know the telemetry expectations are deliberately scoped to
+the substituted primitive, not the full AiTM relay path.
+
 ## Sources consulted
 
 Tier 1:

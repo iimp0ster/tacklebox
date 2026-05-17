@@ -1,7 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1087.004
 display_name: "Graph reconnaissance via /api/prt/recon"
-_mapping_confidence: medium  # T1087.004 (Account Discovery: Cloud Account) is the standard mapping; not stated explicitly in cited sources
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1087.004 (Account Discovery: Cloud Account) is the standard mapping for Graph user/group/role enumeration. T-ID not stated explicitly in cited Sekoia post."
 _citations:
   - claim_type: api_endpoints
     source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/

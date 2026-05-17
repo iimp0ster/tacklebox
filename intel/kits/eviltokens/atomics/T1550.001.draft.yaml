@@ -1,7 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1550.001
 display_name: "Refresh-token replay via /api/prt/refresh"
-_mapping_confidence: medium  # T1550.001 (Application Access Token) is the standard mapping; not stated explicitly in cited sources
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1550.001 (Application Access Token) is the standard mapping for refresh-token redemption against an OAuth resource. T-ID not stated explicitly in cited Sekoia post."
 _citations:
   - claim_type: api_endpoints
     source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/

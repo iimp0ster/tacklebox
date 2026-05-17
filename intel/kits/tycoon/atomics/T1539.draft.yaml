@@ -1,7 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1539
 display_name: "AiTM session cookie capture via reverse-proxy relay"
-_mapping_confidence: medium  # T1539 (Steal Web Session Cookie) is the consensus mapping for AiTM cookie capture; not stated explicitly in cited sources
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1539 (Steal Web Session Cookie) is the consensus mapping for AiTM session-cookie capture across Sekoia, Microsoft TI, and Push Security. T-ID not stated explicitly in any single cited source."
 _citations:
   - claim_type: kit_internals
     source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/

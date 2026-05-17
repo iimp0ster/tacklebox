@@ -1,7 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1539
 display_name: "PRT cookie generation via /api/prt/cookie"
-_mapping_confidence: medium  # T1539 (Steal Web Session Cookie) covers PRT-cookie minting; not stated explicitly in cited sources
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1539 (Steal Web Session Cookie) covers PRT-cookie minting -- PRT cookies are the Microsoft session-cookie variant used by the Entra browser-SSO flow. T-ID not stated explicitly in cited Sekoia post."
 _citations:
   - claim_type: api_endpoints
     source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/

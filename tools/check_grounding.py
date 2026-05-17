@@ -215,6 +215,18 @@ def check_atomic(path, source_index):
             f"{confidence!r}"
         )
 
+    # _mapping_confidence_rationale: required whenever _mapping_confidence
+    # is set. Forces the analyst to justify the T-ID choice rather than
+    # default-pick "medium" off the cookbook.
+    if confidence is not None:
+        rationale = data.get("_mapping_confidence_rationale")
+        if not rationale or not isinstance(rationale, str) or not rationale.strip():
+            problems.append(
+                f"  mapping_confidence: _mapping_confidence={confidence!r} "
+                f"requires a non-empty _mapping_confidence_rationale string "
+                f"explaining why this T-ID is the right map"
+            )
+
     return problems
 
 

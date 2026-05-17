@@ -1,7 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1114.003
 display_name: "Inbox forwarding rule for persistence/exfil"
-_mapping_confidence: medium  # T1114.003 (Email Collection: Email Forwarding Rule) is the standard mapping for inbox-forwarding-rule persistence; not stated explicitly in cited sources
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1114.003 (Email Collection: Email Forwarding Rule) is the established mapping for inbox-forwarding-rule persistence in BEC playbooks. T-ID not stated explicitly in cited Sekoia post."
 _citations:
   - claim_type: aitm_tradecraft
     source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/

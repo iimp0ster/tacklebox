@@ -1,7 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1078.004
 display_name: "Device-code redemption against /common/oauth2/token"
-_mapping_confidence: medium  # T1078.004 is the standard mapping for device-code phish; not stated explicitly in cited sources
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1078.004 (Cloud Accounts) is the consensus mapping for device-code phishing; resulting compromise is access via valid cloud credentials. T-ID not stated explicitly in cited Sekoia post."
 _citations:
   - claim_type: kit_internals
     source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
