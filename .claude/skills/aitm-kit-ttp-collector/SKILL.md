@@ -1,0 +1,324 @@
+---
+name: aitm-kit-ttp-collector
+description: |
+  Translate AiTM and device-code phishing kit observations into draft
+  Tacklebox atomics + rigs. Hunts named kit families (Tycoon 2FA, Mamba 2FA,
+  Sneaky 2FA, EvilProxy, FlowerStorm/ODx, ONNX, Greatness, Evilginx,
+  EvilTokens, Kali365) via OSINT (URLScan, VirusTotal, Hunt.io, etc.) AND
+  grounds post-auth procedures in tier-1 research (Sekoia, Microsoft TI, Push
+  Security, SpecterOps, Dirk-Jan Mollema). Produces machine-readable draft
+  artifacts under intel/kits/<kit-slug>/ for human promotion. Never writes
+  to atomics/ or rigs/ directly. Use when triaging a suspect AiTM page,
+  enriching an existing kit family with new procedures, or producing
+  pipeline-ready intel on post-authentication behavior. Distinct from
+  infra-malware-delivery-hunter (which hunts masquerading software delivery
+  infrastructure, not credential harvest).
+---
+
+# aitm-kit-ttp-collector
+
+Translate AiTM phishing-kit observations into Tacklebox draft atomics + rigs.
+Output lands under `intel/kits/<kit-slug>/`. Promotion into runnable
+`atomics/` and `rigs/` is a separate human step gated by schema validation,
+UUID regeneration, citation grounding, and the lab-tenant rule.
+
+## Hard rules
+
+Inherited from `infra-malware-delivery-hunter`:
+
+- Never make direct HTTP requests to adversary infrastructure.
+- OSINT allowlist only: urlscan, VirusTotal, tria.ge, abuse.ch, Shodan,
+  Censys, Hunt.io, Validin, WhoisXML/RDAP, `file:///snapshots`.
+- Never download payloads or kit source.
+- URLs inside OSINT results are *subjects*, not citation destinations -- do
+  not fetch them.
+- Thin intel is valid output. An empty atomic stub with a "needs lab replay"
+  TODO is better than a fabricated executor.
+
+Additions specific to this skill:
+
+- Never write into `/atomics/` or `/rigs/`. Drafts go ONLY to
+  `intel/kits/<kit-slug>/`. The repo's pre-commit hook
+  (`tools/pre-commit-block-direct-writes.sh`) blocks commits to those
+  directories that lack `[PROMOTE]` in the message.
+- Every draft executor command MUST carry the banner comment:
+  `# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load`
+- Every kit-internal claim, telemetry expectation, or MITRE T-ID mapping
+  MUST carry a `_citations` entry that passes `tools/check_grounding.py`.
+- Telemetry fields (`Operation`, `RecordType`, `appId`) MUST be either
+  copied verbatim from a cited source OR set to the literal string
+  `<UNKNOWN -- verify against MS docs>`. Never invented.
+
+## Citation discipline
+
+Every claim in a draft falls into one of the claim types defined in
+`trusted_sources.yaml`. Each claim type has its own sufficiency gate:
+
+| Claim type            | Required tier                                       | Rationale |
+|-----------------------|-----------------------------------------------------|-----------|
+| `kit_internals`       | tier_1 only                                         | Endpoint paths, backend code structure -- model-invention risk is high |
+| `api_endpoints`       | tier_1 only                                         | Same as above |
+| `token_flows`         | tier_1 only                                         | OAuth/PRT mechanics -- protocol-level |
+| `entra_telemetry`     | tier_1 OR canonical (MS Learn)                      | appId / Operation / RecordType -- canonical docs are ground truth |
+| `aitm_tradecraft`     | tier_1 OR two independent tier_2                    | Procedural details about relay logic |
+| `campaign_attribution`| tier_1 OR two independent tier_2                    | Threat-actor naming, kit-to-actor mapping |
+| `et_rules`            | Proofpoint (sole authority)                         | Proofpoint owns Emerging Threats |
+| `email_obfuscation`   | tier_1 OR Sublime alone                             | Email-layer kit details |
+| `mitigations`         | tier_1 OR two independent tier_2 OR MS Learn        | Conditional Access policy guidance |
+
+The validator (`tools/check_grounding.py`) enforces this mechanically. This
+prose describes the rule; the validator is what actually holds.
+
+## MITRE technique mapping discipline
+
+Every draft atomic carries `_mapping_confidence: low | medium | high`.
+
+- `high` -- T-ID is directly stated in a tier_1 citation or is uncontested.
+- `medium` -- T-ID is a reasonable interpretation from cited sources but not
+  stated explicitly.
+- `low` -- T-ID is the analyst's best guess; **requires** at least one tier_1
+  citation in `_citations` (validator enforces).
+
+`low` confidence atomics are still draftable but flagged for explicit human
+review before promotion. This prevents pattern-matching the cookbook below
+without verification.
+
+## Translation loop
+
+1. Identify the kit by fingerprint (URLScan / Sublime / Sekoia kit-fingerprint
+   table below).
+2. Enumerate post-auth behaviors observable in the kit's backend or research
+   grounding.
+3. Map each behavior to a MITRE T-ID with `_mapping_confidence`.
+4. Create or reuse a draft atomic per T-ID. One atomic per T-ID;
+   **per-kit variants live in `atomic_tests[]`** -- do NOT create kit-specific
+   duplicate atomics.
+5. Order atomics into rig steps with `requires_token_from`.
+6. Tag each step with chokepoint ID + URL.
+7. Run `python tools/check_grounding.py --sources
+   .claude/skills/aitm-kit-ttp-collector/trusted_sources.yaml
+   intel/kits/<slug>/atomics/T*.draft.yaml`. Fail-loud.
+
+## URLScan query library (AiTM-focused)
+
+Each entry carries `last_validated: YYYY-MM-DD`. Queries older than 90 days
+are stale -- reverify before use.
+
+| Kit                       | Query                                                                                                                                                                                                                                                                                                  | Hit shape                                              | Confidence    | last_validated |
+|---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|---------------|----------------|
+| Tycoon 2FA                | `page.url:*/auth/* AND filename:"*.js" AND NOT page.domain:microsoftonline.com`                                                                                                                                                                                                                        | Path `/auth/<guid>`, hosted JS bundle                  | medium        | TODO           |
+| Mamba 2FA                 | `page.title:"Sign in to your Microsoft account" AND page.tlsIssuer:"Let's Encrypt" AND task.url:*/common/oauth2/* AND NOT page.domain:(microsoft.com OR live.com OR microsoftonline.com)`                                                                                                              | LE cert + relayed OAuth path                           | medium        | TODO           |
+| Sneaky 2FA                | Outlook-themed CSS hash pivot + Cloudflare Turnstile gate fingerprint                                                                                                                                                                                                                                  | Turnstile JS in HTML                                   | medium        | TODO           |
+| EvilProxy                 | `page.asnname:CLOUDFLARENET AND task.url:*/common/SAS/BeginAuth*`                                                                                                                                                                                                                                      | CF + BeginAuth path                                    | low (noisy)   | TODO           |
+| FlowerStorm / ODx         | Sekoia-published HTML-template hash + Telegram exfil artifact                                                                                                                                                                                                                                          | HTML template + Telegram bot URL                       | medium        | TODO           |
+| ONNX                      | `submission.tags:onnx OR page.url:*/uniquesso/*`                                                                                                                                                                                                                                                       | uniquesso path                                         | medium        | TODO           |
+| Greatness                 | DOM-hash pivot + tenant-branding fetch from victim domain                                                                                                                                                                                                                                              | Tenant-branding endpoint hit                           | low           | TODO           |
+| Evilginx                  | Phishlet artifact paths `*/o/oauth20_authorize.srf*` on non-MS FQDN                                                                                                                                                                                                                                    | OAuth path on non-MS FQDN                              | low           | TODO           |
+| EvilTokens (device code)  | `page.domain:/(adobe\|page-adobe\|calendar_invite\|docusign\|page-docusign\|quarantine\|fax\|onedrive\|page-password\|sharepoint\|voicemail\|index)-[a-z0-9]{3}\..*-s-account\.workers\.dev/` OR `filename:("/api/device/start" AND "/api/device/status/")`                                             | CF Workers subdomain pattern OR EvilTokens API path    | high          | TODO           |
+| Kali365 (ODx device code) | Sekoia/Proofpoint-published fingerprints                                                                                                                                                                                                                                                                | varies                                                 | medium        | TODO           |
+
+## Kit fingerprint table
+
+For each kit, populate: known signin paths | redirect chain shape | CDN/ASN
+preferences | JS/CSS artifact hashes | post-auth API call patterns. Each
+row must back a `_citations` entry in the observation file. Placeholders
+allowed but flagged at promotion time.
+
+## MITRE technique to atomic stub cookbook
+
+Cookbook entries are **seeds**, not authoritative mappings. Every atomic
+stub the model produces must independently cite per the discipline above.
+
+| Behavior                                                | T-ID         | Wrap-tool candidate                  |
+|---------------------------------------------------------|--------------|--------------------------------------|
+| AiTM session-cookie capture                             | T1539        | Hand-replay only (lab fixture)       |
+| Refresh-token theft / FOCI abuse                        | T1550.001    | TokenTacticsV2 / GraphRunner         |
+| OAuth illicit consent grant                             | T1528        | GraphRunner / Microsoft.Graph        |
+| Device-code phishing                                    | T1566.002 + T1078.004 | TokenTacticsV2 / roadtx     |
+| Mailbox inbox-rule persistence                          | T1564.008    | ExchangeOnlineManagement             |
+| Registered-device addition                              | T1098.005    | AADInternals / roadtx                |
+| App-consent / SP-creation persistence                   | T1098.003    | Microsoft.Graph                      |
+| MFA-method registration tamper                          | T1556.006    | Microsoft.Graph                      |
+| PRT cookie generation (e.g. EvilTokens `/api/prt/cookie`) | T1539      | AADInternals / roadtx                |
+| Refresh-token replay for arbitrary resource (e.g. EvilTokens `/api/prt/refresh`) | T1550.001 | TokenTacticsV2 |
+| Graph reconnaissance (`/me`, `/organization`, `/users`, `/groups`, `/applications`, `/domains`, `/directoryRoles`) | T1087.004 | GraphRunner / Microsoft.Graph |
+| Azure subscription enumeration                          | T1526        | GraphRunner / Az PowerShell          |
+
+## Telemetry expectation patterns
+
+Every entry MUST be either copied from a cited source OR set to
+`<UNKNOWN -- verify against MS docs>`. NEVER invented.
+
+Examples (sourced from MS Learn / Sekoia EvilTokens / current docs):
+
+- Refresh-token redemption:
+  `entra_signin { ResourceDisplayName: "Microsoft Graph", AuthenticationProtocol: "refreshToken", riskEventType: "unfamiliarFeatures" }`
+- Inbox-rule create:
+  `exo_audit { Operation: "New-InboxRule", RecordType: 2 }`
+- Device registration:
+  `entra_signin { appId: "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9", ResourceDisplayName: "Device Registration Service" }`
+  + `graph_audit { Operation: "Add device" }`
+- Illicit consent:
+  `graph_audit { Operation: "Consent to application", Workload: "AzureActiveDirectory" }`
+- Device-code authentication (legitimate-looking signin):
+  `entra_signin { AuthenticationProtocol: "deviceCode" }` -- the *lack* of an
+  AiTM signal is the signal; key Tacklebox telemetry expectation.
+
+Default windows: `within_minutes: 5` for signin, `30` for UAL.
+
+## Output file layout
+
+```
+intel/kits/<kit-slug>/
+  observation.md             # human-readable analyst observations + sources
+  rig.draft.yaml             # draft rig with steps[*].atomic references
+  chokepoints.md             # per-chokepoint summary linking to detection-chokepoints URLs
+  atomics/
+    T1539.draft.yaml         # one file per T-ID this kit exercises
+    T1550.001.draft.yaml
+    T1087.004.draft.yaml
+```
+
+Canonical worked example: `intel/kits/eviltokens/`. New kit write-ups should
+mirror its structure.
+
+## Drafting templates
+
+The skill writes these verbatim with placeholders. Citations REQUIRED on
+every atomic draft.
+
+### `intel/kits/<kit-slug>/atomics/T####.draft.yaml`
+
+```yaml
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T####
+display_name: <human-readable behavior>
+_mapping_confidence: medium  # low | medium | high
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/...
+    quote_or_anchor: "verbatim or section anchor"
+  - claim_type: entra_telemetry
+    source_url: https://learn.microsoft.com/...
+    quote_or_anchor: "appId / Operation reference"
+atomic_tests:
+  - name: <kit-name> variant
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: <what this variant does>
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: <one of dependencies/manifests/*.json>
+        throw "stub -- implement against lab tenant"
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO
+```
+
+### `intel/kits/<kit-slug>/rig.draft.yaml`
+
+```yaml
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+rig: <kit-slug>
+display_name: "<Kit Display Name> emulation"
+description: "Post-auth chain observed in <kit> campaigns as of YYYY-MM-DD."
+ua_profile: edge-windows
+egress_profile: residential
+stop_on_error: true
+_citations:
+  - claim_type: aitm_tradecraft
+    source_url: https://...
+    quote_or_anchor: "..."
+steps:
+  - atomic: T####
+    test_name: "<short verb-first description>"
+    requires_token_from: T####
+```
+
+### `intel/kits/<kit-slug>/observation.md`
+
+```markdown
+# <kit-slug> observation -- <YYYY-MM-DD>
+
+## Kit identification
+<how the kit was fingerprinted; URLScan queries that hit>
+
+## Post-auth behaviors observed
+<enumerated list, each with grounding>
+
+## Sources consulted
+- Tier 1: <list with URLs>
+- Tier 2: <list with URLs>
+
+## Open questions
+<gaps to fill before promotion>
+```
+
+### `intel/kits/<kit-slug>/chokepoints.md`
+
+```markdown
+# <kit-slug> -> chokepoint mapping
+
+| Step | T-ID | Chokepoint | URL | Confidence (L/M/H) |
+|------|------|------------|-----|--------------------|
+| 1    | T#### | CP-####    | https://iimp0ster.github.io/detection-chokepoints/CP-#### | M |
+```
+
+## False-positive / pre-promotion checklist
+
+- [ ] Kit attribution backed by >=2 independent OSINT sources OR 1 tier_1
+      research source.
+- [ ] Every atomic wraps a tool in `dependencies/manifests/`. Hand-rolled HTTP
+      is rejected.
+- [ ] Every `expected_telemetry` row references a real `Operation` /
+      `RecordType` / `appId`. No `<UNKNOWN>` allowed at promotion.
+- [ ] No real tenant strings in any artifact.
+- [ ] UUIDs freshly generated at promotion.
+- [ ] Chokepoint URLs resolve.
+- [ ] Rig `steps[*].atomic` IDs resolve to a real file or sibling draft.
+- [ ] `tools/check_grounding.py` passes against every `T####.draft.yaml`.
+- [ ] `_mapping_confidence` is `medium` or `high` (or has a tier_1 citation
+      for `low`).
+
+## Promotion workflow (human-only)
+
+Drafts in `intel/kits/<kit-slug>/` are not runnable. Promotion to
+`atomics/` and `rigs/` is gated by the pre-commit hook
+(`tools/pre-commit-block-direct-writes.sh`) and the production schema.
+
+1. Pick a draft from `intel/kits/<kit-slug>/atomics/T####.draft.yaml`.
+2. Confirm `tools/check_grounding.py` passes.
+3. Generate a real UUID: `pwsh -c '[guid]::NewGuid().Guid'`. Replace the
+   placeholder.
+4. Move/rename to `atomics/T####/T####.yaml`. If multiple kits share a T-ID,
+   append an entry to `atomic_tests[]` rather than duplicating the file.
+5. Implement `executor.command` against a wrap-tool listed in
+   `dependencies/manifests/`. Hand-rolled HTTP is rejected.
+6. Strip all underscored draft fields (`_citations`, `_mapping_confidence`).
+   The production schema's `additionalProperties: false` will reject them,
+   which is the desired forcing function.
+7. Resolve every `<UNKNOWN>` telemetry placeholder to a real value.
+8. Validate:
+   `ajv validate -s schema/tacklebox-atomic.schema.json -d atomics/T####/T####.yaml`
+9. Move the rig to `rigs/<kit-slug>.yaml`. The `rig:` field must equal the
+   filename stem (regex `^[a-z0-9][a-z0-9-]*$`). Every `steps[*].atomic`
+   must resolve to a promoted file.
+10. Validate the rig:
+    `ajv validate -s schema/tacklebox-rig.schema.json -d rigs/<kit-slug>.yaml`
+11. Confirm `Tacklebox.psm1` lab-tenant guard loads cleanly. Commit message
+    includes the literal `[PROMOTE]` token (required by the pre-commit
+    hook). PR description states the lab tenant ID used for replay.
+
+## Worked example
+
+`intel/kits/eviltokens/` is the canonical reference. New kit write-ups should
+match its shape and citation density. If you find yourself reaching for
+placeholders or `<UNKNOWN>`, stop and re-read the tier-1 source.

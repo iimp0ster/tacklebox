@@ -1,0 +1,46 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1550.001
+display_name: "Refresh-token replay via /api/prt/refresh"
+_mapping_confidence: medium  # T1550.001 (Application Access Token) is the standard mapping; not stated explicitly in cited sources
+_citations:
+  - claim_type: api_endpoints
+    source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
+    quote_or_anchor: "EvilTokens exposes /api/prt/refresh, accepting a stolen refresh token and returning a fresh access token for a caller-specified resource"
+  - claim_type: token_flows
+    source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
+    quote_or_anchor: "Operator supplies the target resource URI; kit redeems the refresh token against /common/oauth2/token with that resource value"
+  - claim_type: entra_telemetry
+    source_url: https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
+    quote_or_anchor: "AuthenticationProtocol=refreshToken documented for refresh-token redemption signins"
+atomic_tests:
+  - name: "EvilTokens variant -- refresh-token replay for Microsoft Graph"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the EvilTokens kit's refresh-token replay primitive. Takes a
+      refresh token captured by an upstream atomic (T1078.004) and redeems
+      it for an access token bound to a chosen resource (Microsoft Graph by
+      default). Models what an operator would do via /api/prt/refresh.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    requires_token:
+      from: T1078.004
+      resource: https://graph.microsoft.com
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/tokentacticsv2.json (Invoke-RefreshToMSGraphToken)
+        throw "stub -- implement against lab tenant"
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
+          ResourceDisplayName: "Microsoft Graph"
+          riskEventType: "<UNKNOWN -- verify against MS docs>"
+    exercises_chokepoint:
+      id: CP-TODO-REFRESH-REPLAY
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-REFRESH-REPLAY
+    references:
+      - https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
+      - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
