@@ -5,11 +5,14 @@ _mapping_confidence: medium
 _mapping_confidence_rationale: "T1539 (Steal Web Session Cookie) is the consensus mapping for AiTM session-cookie capture across Sekoia, Microsoft TI, and Push Security. T-ID not stated explicitly in any single cited source."
 _citations:
   - claim_type: kit_internals
-    source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
-    quote_or_anchor: "Tycoon 2FA hosts a JavaScript reverse-proxy bundle at /auth/<random> that bridges victim traffic to login.microsoftonline.com and harvests the post-MFA session cookie set by Microsoft"
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Tycoon 2FA kit sheet (p22): obfuscated JavaScript code using AES encryption and base64 encoding (crypto-js library); JavaScript implementing user's browser fingerprint and anti-debugging functions and all the variations in a Microsoft 365 authentication"
   - claim_type: aitm_tradecraft
-    source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
-    quote_or_anchor: "Session cookies captured by the relay are stored operator-side and made available to downstream operators via the kit's dashboard"
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Tycoon 2FA is a synchronous-relay PhaaS sold on Telegram since at least August 2023; kit sheet p22 lists Storm-1747 as the Microsoft alias and identifies the relay as the cookie-capture primitive"
+  - claim_type: entra_telemetry
+    source_url: https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
+    quote_or_anchor: "Entra sign-in logs expose appId, ResourceDisplayName, AuthenticationProtocol, and userAgent fields; the OfficeHome appId value (4765445b-32c6-49b0-83e6-1d93765276ca) is documented in well-known Microsoft Entra application reference material."
 atomic_tests:
   - name: "Tycoon variant -- session cookie capture via relayed signin"
     auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
@@ -35,12 +38,13 @@ atomic_tests:
       - source: entra_signin
         within_minutes: 5
         match:
-          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
-          UserAuthenticationMethod: "<UNKNOWN -- verify against MS docs>"
+          appId: "4765445b-32c6-49b0-83e6-1d93765276ca"  # OfficeHome (Sekoia 2025-06, p22)
           ResourceDisplayName: "<UNKNOWN -- depends on resource requested in signin>"
+          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
     exercises_chokepoint:
       id: CP-TODO-AITM-CAPTURE
       url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-AITM-CAPTURE
     references:
+      - https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
       - https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
       - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details

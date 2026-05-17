@@ -124,16 +124,24 @@ are stale -- reverify before use.
 
 | Kit                       | Query                                                                                                                                                                                                                                                                                                  | Hit shape                                              | Confidence    | last_validated |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------|---------------|----------------|
-| Tycoon 2FA                | `page.url:*/auth/* AND filename:"*.js" AND NOT page.domain:microsoftonline.com`                                                                                                                                                                                                                        | Path `/auth/<guid>`, hosted JS bundle                  | medium        | TODO           |
-| Mamba 2FA                 | `page.title:"Sign in to your Microsoft account" AND page.tlsIssuer:"Let's Encrypt" AND task.url:*/common/oauth2/* AND NOT page.domain:(microsoft.com OR live.com OR microsoftonline.com)`                                                                                                              | LE cert + relayed OAuth path                           | medium        | TODO           |
-| Sneaky 2FA                | Outlook-themed CSS hash pivot + Cloudflare Turnstile gate fingerprint                                                                                                                                                                                                                                  | Turnstile JS in HTML                                   | medium        | TODO           |
-| EvilProxy                 | `page.asnname:CLOUDFLARENET AND task.url:*/common/SAS/BeginAuth*`                                                                                                                                                                                                                                      | CF + BeginAuth path                                    | low (noisy)   | TODO           |
-| FlowerStorm / ODx         | Sekoia-published HTML-template hash + Telegram exfil artifact                                                                                                                                                                                                                                          | HTML template + Telegram bot URL                       | medium        | TODO           |
-| ONNX                      | `submission.tags:onnx OR page.url:*/uniquesso/*`                                                                                                                                                                                                                                                       | uniquesso path                                         | medium        | TODO           |
-| Greatness                 | DOM-hash pivot + tenant-branding fetch from victim domain                                                                                                                                                                                                                                              | Tenant-branding endpoint hit                           | low           | TODO           |
-| Evilginx                  | Phishlet artifact paths `*/o/oauth20_authorize.srf*` on non-MS FQDN                                                                                                                                                                                                                                    | OAuth path on non-MS FQDN                              | low           | TODO           |
+| Tycoon 2FA                | `page.url:*/auth/* AND filename:"*.js" AND NOT page.domain:microsoftonline.com`                                                                                                                                                                                                                        | Domain regex `[a-z0-9]{2,6}\.[a-z]{5,15}\.(ru\|com\|es\|cc\|info\|su\|vip)`; autograb `/{4-15-char}/?em=<email>`; App ID `4765445b-32c6-49b0-83e6-1d93765276ca` (OfficeHome); ASs AS9009, AS29802 | high          | 2025-06        |
+| Storm-1167 / FlowerStorm  | `task.url:*.cos.ap-*.myqcloud.com AND page.title:"Sign in to your Microsoft account"` OR `page.domain:*.it.com AND filename:"google.php"`                                                                                                                                                              | Tencent CDN `<bucket-appid>.cos.ap-<region>.myqcloud.com` hosts JS; exfil to `[0-9]{9,10}\.(cfd\|sbs\|xyz\|my\.id)/google.php`; ASs AS132203, AS19871 | high          | 2025-06        |
+| Mamba 2FA                 | `page.url:/.*\\/(o\|r\|s)\\/\\?(c3Y9bzM2NV\|aXBkYXRhP).*/` OR `task.url:*socket.io/?EIO=4*`                                                                                                                                                                                                            | Autograb `<domain>/(o\|r\|s)/?(c3Y9bzM2NV\|aXBkYXRhP)<base64>N0123N<email>`; Socket.IO exfil; ASs IPRoyal proxies, Karolio IT | high          | 2025-06        |
+| Sneaky 2FA                | `page.url:/.*\\/[a-zA-Z0-9]{120,170}\\/(index\|verify\|validate)$/` AND `page.title:("Verify your account" OR "Verify your identity" OR "Confirm your login" OR "Signin to your account")`                                                                                                             | URI pattern `/<uri>/[a-zA-Z0-9]{120-170}/(index\|verify\|validate)`; HTML `<!-- Food Section -->` indicator; ASs AS14061 (DigitalOcean) | high          | 2025-06        |
+| EvilProxy                 | `page.url:/https:\\/\\/[a-f0-9]{32}\\..*/` AND `page.title:"reCAPTCHA: Click Allow to verify that you are not a robot"`                                                                                                                                                                                | Auth subdomain `[a-f0-9]{32}.<domain>`; older `(accounts\|0ffice\|0nline1\|l1ve).<domain>`; App ID `72782ba9-4490-4f03-8d82-562370ea3566` (Office365); ASs AS14061, AS63949 | high          | 2025-06        |
+| NakedPages                | `page.url:*workers.dev*?qrc=* OR *workers.dev*?email=*` OR `page.url:*/ping/v5767687`                                                                                                                                                                                                                  | Initial CF Workers `workers.dev` or affiliate domain; reverse-proxy `aadcdn.msftauth.net/~/shared/1.0/content/.*`; final `/ping/v5767687`; App IDs OfficeHome + Office365 + EXO | high          | 2025-06        |
+| Saiga 2FA                 | `page.url:*?S=*@*` AND `task.url:/.*\\/api\\/(config\|check-bot\|check-ip\|deets\|email\|login\|notice\|auth\|poll\|process\|kmsi)\\/$/`                                                                                                                                                               | Autograb `?S=<email>`; Next.js exfil endpoints `/api/{config,check-bot,...}/`; ASs AS36352, AS9009 | medium        | 2025-06        |
+| Greatness                 | `page.url:/.*\\/s\\/[a-f0-9]{7,12}\\?[a-f0-9]{7,12}=.*/` OR `task.url:*upload.wikimedia.org*` AND `page.title:*sign in*`                                                                                                                                                                               | Path `/s/<hex7-12>?<hex7-12>=<email>`; WebSocket exfil `ws://...//p/[0-9]{3}?session=<hex64>`; resources from `upload.wikimedia.org`, `encrypted-tbn0.gstatic.com`; ASs PacketStream residential, AS16509 | high          | 2025-06        |
+| Evilginx - ywnjb          | `page.url:*ywnjb.*` AND `task.url:*/common/oauth2/v2.0/authorize*`                                                                                                                                                                                                                                     | Phishlet `ywnjb` subdomain (= base64 `acc`); paths mirror Microsoft (`/common/oauth2/v2.0/authorize`, `/common/GetCredentialType`, `/common/SAS/BeginAuth`); Rick Astley YouTube redirect; ASs AS16509, AS14061 | high          | 2025-06        |
+| Gabagool / Skyw4lker      | `page.url:*assets/php/endpoints/accounts.php*`                                                                                                                                                                                                                                                         | Exfil `POST <domain>/<folder>/assets/php/endpoints/accounts.php`; CF Turnstile "Browser security check in progress."; AS174 | medium        | 2025-06        |
+| CEPHAS / W3LL Panel       | `page.url:/.*\\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\\/.*\\.php$/`                                                                                                                                                                                                             | Path `/<UUID>/`; endpoints `p5Qw9X8rN3.php`, `bR7sD9kJ2m.php`, `khL9kO2fV1.php`; central server AS202015 | medium        | 2025-06        |
 | EvilTokens (device code)  | `page.domain:/(adobe\|page-adobe\|calendar_invite\|docusign\|page-docusign\|quarantine\|fax\|onedrive\|page-password\|sharepoint\|voicemail\|index)-[a-z0-9]{3}\..*-s-account\.workers\.dev/` OR `filename:("/api/device/start" AND "/api/device/status/")`                                             | CF Workers subdomain pattern OR EvilTokens API path    | high          | TODO           |
 | Kali365 (ODx device code) | Sekoia/Proofpoint-published fingerprints                                                                                                                                                                                                                                                                | varies                                                 | medium        | TODO           |
+
+Most rows above are grounded in Sekoia's June 2025 "Global analysis of
+Adversary-in-the-Middle phishing threats" report
+(`https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/`,
+local snapshot at `intel/snapshots/2025-06-sekoia-global-aitm/`).
 
 ## Kit fingerprint table
 
@@ -183,6 +191,51 @@ Examples (sourced from MS Learn / Sekoia EvilTokens / current docs):
   AiTM signal is the signal; key Tacklebox telemetry expectation.
 
 Default windows: `within_minutes: 5` for signin, `30` for UAL.
+
+## Cross-kit detection patterns (synchronous-relay tells)
+
+Grounded in Sekoia's June 2025 "Global analysis of Adversary-in-the-Middle
+phishing threats" report. These apply across most synchronous-relay AiTM
+kits (Tycoon 2FA, Storm-1167, Sneaky 2FA, Mamba 2FA, Saiga 2FA, Greatness,
+Gabagool, CEPHAS) and should be considered as standard `expected_telemetry`
+match candidates for any AiTM-cookie-capture atomic:
+
+1. **User-Agent anomalies** -- relays hardcode the UA value rather than
+   forwarding the victim's. Tells: missing UA, library-specific UA strings
+   (e.g. `python-requests/`, `Go-http-client/`), invalid/fabricated UAs, or
+   outdated/rare UAs. Field: `entra_signin.userAgent` /
+   `ual.ExtendedProperties[Name=UserAgent].Value`.
+
+2. **Application ID + Resource ID consistency** -- a given kit hits the
+   same App ID consistently. Most PhaaS target `OfficeHome`
+   (`4765445b-32c6-49b0-83e6-1d93765276ca`). Notable exceptions: EvilProxy
+   targets `Office365` (`72782ba9-4490-4f03-8d82-562370ea3566`);
+   NakedPages also targets Office 365 Exchange Online
+   (`00000002-0000-0ff1-ce00-000000000000`). Field:
+   `entra_signin.appId` / `ual.ApplicationId`.
+
+3. **ASN / country of source IP** -- kits operate from hosting ASs, not
+   ISP ASs. Centralised kits use single hosting ASs (e.g. Storm-1167 ->
+   AS19871 US or AS132203 DE/US). Field:
+   `entra_signin.autonomousSystemNumber` /
+   `entra_signin.location.countryOrRegion`. Note: residential-proxy kits
+   (Caffeine/ONNX historically; Greatness, Mamba 2FA currently) defeat
+   this signal.
+
+4. **Correlation ID reuse** -- some kits fail to generate a unique UUID
+   per signin and reuse the same correlation ID across multiple
+   authentication attempts. Field: `entra_signin.correlationId` /
+   `ual.InterSystemsId`.
+
+5. **Incoherences across authentication steps** -- a single auth attempt
+   should produce events sharing a correlation ID. Synchronous-relay bugs
+   cause UA, ASN, or country to *vary* within those events. Detection is
+   correlation-grouped variance, not single-event content.
+
+Source: Sekoia, "Global analysis of Adversary-in-the-Middle phishing
+threats", June 2025
+(`https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/`,
+local snapshot `intel/snapshots/2025-06-sekoia-global-aitm/`).
 
 ## Output file layout
 

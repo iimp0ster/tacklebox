@@ -4,23 +4,40 @@
 
 ## Kit identification
 
-Tycoon 2FA is a PhaaS AiTM reverse-proxy kit profiled by Sekoia TDR in
-March 2024 and tracked through multiple version revisions. Distinguishing
-characteristics:
+Tycoon 2FA is a PhaaS **synchronous-relay** AiTM kit, tracked by Microsoft
+as **Storm-1747**. PhaaS since August 2023, sold on Telegram. Per Sekoia's
+June 2025 "Global analysis of Adversary-in-the-Middle phishing threats",
+Tycoon 2FA was the highest-prevalence AiTM kit in Q1 2025 (score 4.8/5)
+and reuses source from the older Dadsec OTT kit.
 
-- Lure pages typically on random-character subdomains under `.ru`, `.es`,
-  `.com`, and `.cloud` TLDs; often Cloudflare-fronted.
-- Hosted JS payload at `/auth/<random>` paths fetched after the initial
-  page load; the bundle implements the reverse-proxy bridge to
-  `login.microsoftonline.com`.
-- Captures username, password, MFA challenge, and the resulting session
-  cookie set by Microsoft for the victim.
-- Operator-side dashboard sells captured cookies for downstream replay.
+Grounded fingerprints (Sekoia 2025-06):
 
-URLScan query that hits (see `SKILL.md`):
+- **Domain pattern:** mostly `[a-z0-9]{2,6}\.[a-z]{5,15}\.(ru|com|es)`
+  (also `.cc`, `.info`, `.su`, `.vip` and other TLDs).
+- **Autograb URL patterns:**
+  - `https://<domain>/[a-zA-Z0-9@!]{4,15}/($|*|?em=|)<email-address>`
+  - `https://<domain>/[a-zA-Z0-9]{0,15}@[a-zA-Z0-9]{0,15}/`
+  - `https://<domain>/[a-zA-Z0-9]{0,15}@[a-zA-Z0-9]{0,15}/($|*)<username-email-address>`
+- **Auth path:** `/auth/<random>` hosts an obfuscated JS bundle using
+  `crypto-js` AES + base64.
+- **App ID:** `4765445b-32c6-49b0-83e6-1d93765276ca` (OfficeHome).
+- **Top ASs:** AS9009, AS29802.
+- **Code indicators:** fetches `code.jquery.com/jquery-3.6.0.min.js` and
+  `cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js`;
+  unicode zero-width-space `U+200B` in HTML `<title>`.
+- **Anti-bot:** custom CAPTCHA + fake Cloudflare Turnstile / hCaptcha /
+  reCAPTCHA; integrates the BlackTDS service for traffic filtering.
+
+URLScan queries (see `SKILL.md` for the full library):
 
 ```
 page.url:*/auth/* AND filename:"*.js" AND NOT page.domain:microsoftonline.com
+```
+
+Tighter grounded pivot from the report:
+
+```
+page.domain:/[a-z0-9]{2,6}\.[a-z]{5,15}\.(ru|com|es)/ AND page.title:"Sign in to your Microsoft account"
 ```
 
 ## Post-auth behaviors observed
@@ -58,14 +75,19 @@ the substituted primitive, not the full AiTM relay path.
 ## Sources consulted
 
 Tier 1:
+- Sekoia TDR -- "Global analysis of Adversary-in-the-Middle phishing
+  threats" (June 2025) --
+  `https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/`
+  Local snapshot: `intel/snapshots/2025-06-sekoia-global-aitm/`.
+  Verbatim anchors used in atomic citations: kit sheet on p22, App ID,
+  ASs, URL regex, autograb patterns, anti-bot stack, Dadsec OTT lineage.
 - Sekoia TDR -- "Tycoon 2FA: an in-depth analysis of the latest version
-  of the AiTM phishing kit" --
+  of the AiTM phishing kit" (March 2024) --
   `https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/`
-  (URL is the citation anchor; verify the exact post slug against
-  blog.sekoia.io before promotion.)
-- Microsoft Threat Intelligence -- Storm-1575 / AiTM PhaaS coverage
-  (Microsoft has tracked Tycoon under the Storm-XXXX taxonomy; exact post
-  URL not anchored here. Cite during promotion.)
+  Original per-kit deep-dive (verify the exact post slug at promotion).
+- Microsoft Threat Intelligence -- Tycoon is tracked as Storm-1747
+  (per the Sekoia 2025-06 report, p22; Microsoft's own post URL is not
+  anchored here).
 
 Canonical:
 - Microsoft Learn -- Entra sign-in log schema, refresh-token signin

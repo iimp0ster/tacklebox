@@ -1,27 +1,28 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1550.001
-display_name: "Refresh-token replay against Exchange/Graph after AiTM capture"
+display_name: "Refresh-token replay against Exchange/Graph after Storm-1167 capture"
 _mapping_confidence: medium
-_mapping_confidence_rationale: "T1550.001 (Application Access Token) is the standard mapping for refresh-token redemption against an OAuth resource (here Exchange Online). T-ID not stated explicitly in cited Sekoia post."
+_mapping_confidence_rationale: "T1550.001 (Application Access Token) is the standard mapping for OAuth refresh-token redemption. Storm-1167 post-compromise behavior follows the standard PhaaS-AiTM chain (cookie capture -> refresh-token pivot); not explicitly mapped in cited Sekoia 2025-06 report."
 _citations:
   - claim_type: token_flows
     source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-    quote_or_anchor: "Sekoia 2025-06, introduction: 'With that cookie, an attacker can replay the session, and access the victim's account without needing to perform any further authentication.' Refresh-token pivot follows the cookie replay as the standard post-AiTM monetisation chain."
+    quote_or_anchor: "Sekoia 2025-06, introduction: 'With that cookie, an attacker can replay the session, and access the victim's account without needing to perform any further authentication.' Standard PhaaS monetisation chain pivots from session cookie to refresh-token redemption against Exchange/Graph."
   - claim_type: aitm_tradecraft
     source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-    quote_or_anchor: "Sekoia 2025-06, BEC section (p10): 'attackers often add their own 2FA method after compromising the account, ensuring they can still access it even if session cookies are revoked.' Refresh-token pivot to Exchange resource is the typical bridge step."
+    quote_or_anchor: "Sekoia 2025-06, BEC section (p10): 'attackers often add their own 2FA method after compromising the account, ensuring they can still access it even if session cookies are revoked.' Refresh-token pivot to Exchange resource enables persistent BEC access."
   - claim_type: entra_telemetry
     source_url: https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
     quote_or_anchor: "Refresh-token redemption signins are logged with AuthenticationProtocol=refreshToken and the ResourceDisplayName of the target resource"
 atomic_tests:
-  - name: "Tycoon variant -- refresh-token pivot to Outlook/Exchange"
+  - name: "Storm-1167 variant -- refresh-token pivot to Outlook/Exchange"
     auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
     description: |
-      Emulates the post-AiTM refresh-token pivot. Takes the refresh token
-      captured by an upstream atomic (T1539) and redeems it against
-      /common/oauth2/token with target resource https://outlook.office.com
-      (Exchange Online resource URI). Models what Tycoon operators do
-      after acquiring the cookie/token bundle.
+      Emulates the post-Storm-1167 refresh-token pivot. Takes the
+      refresh token captured by an upstream atomic (T1539) and
+      redeems it against /common/oauth2/token with target resource
+      https://outlook.office.com (Exchange Online resource URI).
+      Models what FlowerStorm-using operators do after acquiring the
+      cookie/token bundle, prior to inbox-rule persistence.
     supported_platforms: [windows]
     auth_profile: lab-user-mfa
     requires_token:
@@ -44,5 +45,4 @@ atomic_tests:
       url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-REFRESH-REPLAY
     references:
       - https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-      - https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
       - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details

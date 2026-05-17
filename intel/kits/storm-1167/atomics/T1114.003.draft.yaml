@@ -1,8 +1,8 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1114.003
-display_name: "Inbox forwarding rule for persistence/exfil"
+display_name: "Inbox forwarding rule for persistence/exfil after Storm-1167 capture"
 _mapping_confidence: medium
-_mapping_confidence_rationale: "T1114.003 (Email Collection: Email Forwarding Rule) is the established mapping for inbox-forwarding-rule persistence in BEC playbooks. T-ID not stated explicitly in cited Sekoia post."
+_mapping_confidence_rationale: "T1114.003 (Email Collection: Email Forwarding Rule) is the established mapping for inbox-forwarding-rule persistence in BEC playbooks. Storm-1167-driven BEC follows the standard inbox-rule pattern; not explicitly mapped in cited Sekoia 2025-06 report."
 _citations:
   - claim_type: aitm_tradecraft
     source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
@@ -11,14 +11,15 @@ _citations:
     source_url: https://learn.microsoft.com/en-us/purview/audit-log-activities
     quote_or_anchor: "Exchange Online inbox-rule operations are logged in the Unified Audit Log as Operation=New-InboxRule with RecordType=ExchangeAdmin"
 atomic_tests:
-  - name: "Tycoon variant -- create inbox forwarding rule via Graph"
+  - name: "Storm-1167 variant -- create inbox forwarding rule via Graph"
     auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
     description: |
-      Emulates the persistence step commonly observed after a Tycoon
-      relay capture: a forwarding inbox rule is created on the victim
-      mailbox to silently exfiltrate selected messages to an
-      operator-controlled address. Uses the token acquired in
-      T1550.001 (refresh-token pivot to Exchange resource).
+      Emulates the persistence step commonly observed after a
+      Storm-1167 / FlowerStorm relay capture: a forwarding inbox rule
+      is created on the victim mailbox to silently exfiltrate selected
+      messages to an operator-controlled address. Uses the token
+      acquired in T1550.001 (refresh-token pivot to Exchange
+      resource).
     supported_platforms: [windows]
     auth_profile: lab-user-mfa
     requires_token:
@@ -32,7 +33,7 @@ atomic_tests:
       rule_name:
         description: "Inbox rule display name."
         type: String
-        default: "Tycoon-Lab-Exfil-Rule"
+        default: "FlowerStorm-Lab-Exfil-Rule"
     executor:
       name: powershell
       command: |
@@ -51,5 +52,4 @@ atomic_tests:
       url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-INBOX-RULE
     references:
       - https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-      - https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
       - https://learn.microsoft.com/en-us/purview/audit-log-activities
