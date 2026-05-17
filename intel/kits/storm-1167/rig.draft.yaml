@@ -1,0 +1,18 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic and requires_token_from use bare T-IDs in drafts;
+# promotion resolves each to the full T####-<behavior-slug> form.
+rig: storm-1167
+display_name: "Storm-1167 / FlowerStorm -- AiTM relay chain"
+description: "Storm-1167 kill chain: synchronous-relay session cookie capture -> refresh-token replay against Exchange -> inbox-rule persistence. Sourced from Sekoia June 2025 'Global analysis of AitM phishing threats'."
+ua_profile: storm1167-chrome-win
+egress_profile: datacenter
+stop_on_error: true
+steps:
+  - atomic: T1539
+    test_name: "AiTM session cookie capture via interactive lab signin (relay-substitute)"
+  - atomic: T1550.001
+    test_name: "Refresh-token pivot to Outlook/Exchange"
+    requires_token_from: T1539
+  - atomic: T1114.003
+    test_name: "Create inbox forwarding rule via Graph"
+    requires_token_from: T1550.001

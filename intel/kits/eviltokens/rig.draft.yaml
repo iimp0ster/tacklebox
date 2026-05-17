@@ -1,0 +1,19 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+rig: eviltokens
+display_name: "EvilTokens emulation"
+description: "Device-code phish + PRT minting + Graph recon chain observed in the EvilTokens kit (Sekoia, 2025)."
+ua_profile: edge-windows
+egress_profile: residential
+stop_on_error: true
+steps:
+  - atomic: T1078.004
+    test_name: "Device-code redemption against /common/oauth2/token"
+  - atomic: T1550.001
+    test_name: "Refresh-token replay for Microsoft Graph"
+    requires_token_from: T1078.004
+  - atomic: T1539
+    test_name: "PRT cookie minting"
+    requires_token_from: T1078.004
+  - atomic: T1087.004
+    test_name: "Graph tenant snapshot"
+    requires_token_from: T1550.001

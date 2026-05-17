@@ -1,0 +1,50 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1078.004
+display_name: "Device-code redemption against /common/oauth2/token"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1078.004 (Cloud Accounts) is the consensus mapping for device-code phishing; resulting compromise is access via valid cloud credentials. T-ID not stated explicitly in cited Sekoia post."
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
+    quote_or_anchor: "EvilTokens backend exposes /api/device/start and /api/device/status/ endpoints proxying Microsoft device-code flow"
+  - claim_type: token_flows
+    source_url: https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
+    quote_or_anchor: "Kit polls Microsoft's /common/oauth2/token endpoint with a public Office client_id to redeem the user-completed device code"
+  - claim_type: entra_telemetry
+    source_url: https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
+    quote_or_anchor: "AuthenticationProtocol field enumerates the protocol used; deviceCode is the documented value for device-code flow signins"
+atomic_tests:
+  - name: "EvilTokens variant -- device-code redemption"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the EvilTokens kit's device-code redemption step. After the
+      victim completes the device-code prompt on microsoft.com/devicelogin,
+      the kit polls /common/oauth2/token until it receives an access +
+      refresh token pair. This atomic wraps that redemption against the
+      lab tenant.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/tokentacticsv2.json (Invoke-DeviceCodeAttack)
+        # OR: dependencies/manifests/roadtx.json (roadtx gettokens --device-code)
+        throw "stub -- implement against lab tenant"
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
+          ResourceDisplayName: "Microsoft Graph"
+      - source: graph_audit
+        within_minutes: 30
+        match:
+          Operation: "<UNKNOWN -- verify against MS docs>"
+          Workload: "AzureActiveDirectory"
+    exercises_chokepoint:
+      id: CP-TODO-DEVICE-CODE
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-DEVICE-CODE
+    references:
+      - https://blog.sekoia.io/new-widespread-eviltokens-kit-device-code-phishing-as-a-service-part-1/
+      - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details

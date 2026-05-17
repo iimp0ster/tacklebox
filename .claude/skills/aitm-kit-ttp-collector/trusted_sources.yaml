@@ -1,0 +1,266 @@
+# trusted_sources.yaml
+#
+# Curated research-source registry for the aitm-kit-ttp-collector skill
+# (and the sibling infra-malware-delivery-hunter skill).
+#
+# Two-axis model:
+#   - tier:    coarse signal of how authoritative the source is
+#   - grounds: list of CLAIM TYPES this source is competent to ground
+#
+# Tier rule (enforced by tools/check_grounding.py):
+#   - tier_1 source with matching grounds  -> sufficient alone
+#   - tier_2 source with matching grounds  -> needs a second independent source (any T1 or T2)
+#   - tier_3 source                        -> supplementary only, never sufficient alone
+#
+# Claim types currently recognized:
+#   - kit_internals           kit-internal API endpoints, backend code structure
+#   - api_endpoints           specific path / method / parameters of kit endpoints
+#   - token_flows             OAuth flow specifics, PRT conversion, refresh-token mechanics
+#   - aitm_tradecraft         relay logic, session-cookie capture, fingerprinting JS
+#   - identity_attack_flows   end-to-end identity attack chains
+#   - entra_telemetry         Entra signin / audit field names, appIds, Operations, RecordTypes
+#   - post_compromise_telemetry  UAL / EXO audit field names, IR-grade artifacts
+#   - storm_attribution       Microsoft Storm-XXXX / threat-actor naming
+#   - campaign_attribution    TA-numbered or named actor activity tracking
+#   - ecosystem_tracking      kit-to-actor mapping, PhaaS market dynamics
+#   - kit_evolution           how a named kit has changed over time
+#   - email_obfuscation       HTML attachment, JS, payload-layer obfuscation
+#   - email_layer_detection   email-side detection rules, ET rules at email layer
+#   - network_detection       network-layer detection rules / signatures
+#   - et_rules                Emerging Threats Suricata SIDs and rule shape
+#   - kql_queries             Microsoft-shape KQL hunt queries
+#   - urlscan_queries         working URLScan queries with regex patterns
+#   - yara                    YARA rule bodies usable as-is or near-as-is
+#   - mitigations             Conditional Access / control-plane mitigations
+#   - ioc_volume              high-volume IOC lists with first-seen dates
+#   - infrastructure_analysis hosting patterns, ASN, certificate analysis
+#   - dfir_artifacts          forensic artifacts, log evidence, IR write-ups
+#
+# When a source is missing a recently-fetched indicator, prefer to FAIL the
+# grounding check and flag for human review rather than relax the gate.
+
+tier_1:
+  - domain: blog.sekoia.io
+    name: Sekoia TDR
+    grounds:
+      - kit_internals
+      - api_endpoints
+      - token_flows
+      - aitm_tradecraft
+      - identity_attack_flows
+      - urlscan_queries
+      - yara
+      - ioc_volume
+    notes: |
+      Gold standard for kit-internals depth. Backend code analysis,
+      exact API paths, token weaponization. YARA included when relevant.
+      Part 1 / Part 2 pattern -- always check for sibling posts.
+
+  - domain: microsoft.com/en-us/security/blog
+    name: Microsoft Threat Intelligence
+    grounds:
+      - entra_telemetry
+      - storm_attribution
+      - identity_attack_flows
+      - kql_queries
+      - mitigations
+    notes: |
+      Primary source on Entra signin / audit field semantics, appIds,
+      and Microsoft-named threat actors (Storm-XXXX). KQL queries
+      embedded inline. Mitigation guidance is canonical.
+
+  - domain: pushsecurity.com/blog
+    name: Push Security
+    grounds:
+      - identity_attack_flows
+      - aitm_tradecraft
+      - token_flows
+    notes: |
+      Identity-attack tradecraft with strong flow-diagram analysis.
+      Tier 1 for AiTM session-token attacks and OAuth abuse flows.
+
+  - domain: posts.specterops.io
+    name: SpecterOps
+    grounds:
+      - kit_internals
+      - token_flows
+      - identity_attack_flows
+      - aitm_tradecraft
+    notes: |
+      Microsoft cloud abuse research (Robbins, Chester, et al).
+      Tier 1 for PRT mechanics, OAuth abuse, Azure attack paths.
+
+  - domain: dirkjanm.io
+    name: Dirk-Jan Mollema
+    grounds:
+      - token_flows
+      - kit_internals
+      - identity_attack_flows
+    notes: |
+      Primary protocol-level research on Entra tokens, PRT, device
+      registration. ROADtools author. When DJM publishes on a flow,
+      treat it as protocol ground truth.
+
+tier_2:
+  - domain: proofpoint.com/us/blog/threat-insight
+    name: Proofpoint Threat Insight
+    grounds:
+      - campaign_attribution
+      - ecosystem_tracking
+      - et_rules
+      - network_detection
+      - mitigations
+      - ioc_volume
+    sole_authority_for:
+      - et_rules
+    notes: |
+      High-volume email telemetry lens. Strong on TA-numbered actor
+      attribution and ET Suricata SIDs. Defers to Sekoia for kit
+      internals -- do not cite Proofpoint for kit_internals grounds.
+      Sole authority for et_rules (Proofpoint owns Emerging Threats).
+
+  - domain: sublime.security/blog
+    name: Sublime Security
+    grounds:
+      - email_obfuscation
+      - email_layer_detection
+      - ioc_volume
+      - kit_evolution
+    notes: |
+      Email-layer lens. HTML attachment obfuscation, kit evolution
+      tracking. For pre-auth phishing chokepoints treat as near-tier-1.
+      For post-auth atomics it is the wrong layer.
+
+  - domain: cloud.google.com/blog/topics/threat-intelligence
+    name: Mandiant / Google Threat Intelligence
+    grounds:
+      - campaign_attribution
+      - post_compromise_telemetry
+      - dfir_artifacts
+      - infrastructure_analysis
+    notes: |
+      APT-grade attribution and post-compromise depth. Less kit-focused,
+      more actor- and incident-focused. Tier 1 for nation-state contexts
+      not currently in scope here.
+
+  - domain: volexity.com/blog
+    name: Volexity
+    grounds:
+      - token_flows
+      - post_compromise_telemetry
+      - dfir_artifacts
+      - identity_attack_flows
+    notes: |
+      Primary research on PRT theft and identity exploitation in
+      espionage contexts. Approaches tier_1 for token theft specifically.
+
+  - domain: unit42.paloaltonetworks.com
+    name: Unit 42
+    grounds:
+      - campaign_attribution
+      - infrastructure_analysis
+      - ioc_volume
+
+  - domain: trustwave.com/en-us/resources/blogs/spiderlabs-blog
+    name: Trustwave SpiderLabs
+    grounds:
+      - kit_internals
+      - kit_evolution
+      - campaign_attribution
+    notes: |
+      Historical kit-analysis depth (Greatness, prior PhaaS coverage).
+      Cite alongside a current source for kit_internals -- their
+      coverage cadence is irregular.
+
+  - domain: permiso.io/blog
+    name: Permiso Security
+    grounds:
+      - token_flows
+      - identity_attack_flows
+      - post_compromise_telemetry
+      - network_detection
+
+  - domain: securitylabs.datadoghq.com
+    name: Datadog Security Labs
+    grounds:
+      - identity_attack_flows
+      - post_compromise_telemetry
+      - network_detection
+
+  - domain: huntress.com/blog
+    name: Huntress
+    grounds:
+      - campaign_attribution
+      - post_compromise_telemetry
+      - dfir_artifacts
+      - aitm_tradecraft
+
+  - domain: tradecraft.huntress.com
+    name: Huntress Tradecraft Tuesday
+    grounds:
+      - aitm_tradecraft
+      - post_compromise_telemetry
+
+  - domain: inversecos.com
+    name: Inversecos (Lina Lau)
+    grounds:
+      - post_compromise_telemetry
+      - dfir_artifacts
+      - entra_telemetry
+
+  - domain: blog.xpnsec.com
+    name: Adam Chester (xpn.io)
+    grounds:
+      - token_flows
+      - kit_internals
+      - aitm_tradecraft
+
+  - domain: arcticwolf.com/resources/blog
+    name: Arctic Wolf
+    grounds:
+      - campaign_attribution
+      - kit_evolution
+      - post_compromise_telemetry
+
+  - domain: thedfirreport.com
+    name: The DFIR Report
+    grounds:
+      - post_compromise_telemetry
+      - dfir_artifacts
+      - campaign_attribution
+    notes: |
+      Full kill-chain reconstructions. Ransomware-heavy but useful
+      cross-reference for post-compromise behaviors observed in the wild.
+
+tier_3:
+  - domain: cisa.gov
+    name: CISA
+    grounds:
+      - campaign_attribution
+      - mitigations
+    notes: |
+      Supplementary only. Useful for confirming attribution or pointing
+      at advisories, never sufficient grounding alone.
+
+  - domain: bleepingcomputer.com
+    name: BleepingComputer
+    grounds:
+      - campaign_attribution
+      - ecosystem_tracking
+    notes: |
+      News-tier coverage. Cross-reference only.
+
+# Microsoft Learn docs are not a "research source" but ARE canonical for
+# entra_telemetry claims (appId values, Operation names). Treated as a
+# separate axis -- always citable for that grounds type.
+canonical_docs:
+  - domain: learn.microsoft.com
+    name: Microsoft Learn
+    grounds:
+      - entra_telemetry
+      - kql_queries
+      - mitigations
+    notes: |
+      Use for verifying appId values, Operation strings, RecordType
+      enums. Not a "research" source but is ground truth for these
+      specific claim types.
