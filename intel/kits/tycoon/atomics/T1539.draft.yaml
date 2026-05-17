@@ -1,0 +1,45 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1539
+display_name: "AiTM session cookie capture via reverse-proxy relay"
+_mapping_confidence: medium  # T1539 (Steal Web Session Cookie) is the consensus mapping for AiTM cookie capture; not stated explicitly in cited sources
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
+    quote_or_anchor: "Tycoon 2FA hosts a JavaScript reverse-proxy bundle at /auth/<random> that bridges victim traffic to login.microsoftonline.com and harvests the post-MFA session cookie set by Microsoft"
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
+    quote_or_anchor: "Session cookies captured by the relay are stored operator-side and made available to downstream operators via the kit's dashboard"
+atomic_tests:
+  - name: "Tycoon variant -- session cookie capture via relayed signin"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates Tycoon 2FA's AiTM session cookie capture step. Because
+      Tacklebox does not stand up a real reverse-proxy relay, the
+      lab-safe emulation strategy is to perform an authenticated signin
+      from a Tacklebox-controlled client and persist the resulting
+      Microsoft-issued session cookie (or PRT) to disk for downstream
+      replay. This produces an Entra sign-in record consistent with a
+      relayed signin (interactive UserAuthenticationMethod, non-MS UA)
+      without exposing the lab to relay infrastructure.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/aadinternals.json (Get-AADIntAccessTokenForAADGraph + cookie persistence)
+        # OR: dependencies/manifests/roadtx.json (roadtx -- interactive auth, save tokens)
+        throw "stub -- implement against lab tenant"
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
+          UserAuthenticationMethod: "<UNKNOWN -- verify against MS docs>"
+          ResourceDisplayName: "<UNKNOWN -- depends on resource requested in signin>"
+    exercises_chokepoint:
+      id: CP-TODO-AITM-CAPTURE
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-AITM-CAPTURE
+    references:
+      - https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
+      - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details

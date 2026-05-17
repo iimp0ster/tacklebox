@@ -1,0 +1,23 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic and requires_token_from use bare T-IDs in drafts;
+# promotion resolves each to the full T####-<behavior-slug> form.
+#
+# Note: rigs/tycoon.yaml already exists in the production tree and emulates
+# the Tycoon kill chain via device-code phishing as a lab-safe primitive.
+# This draft describes the *actual* Tycoon AiTM chain. See observation.md
+# for the consolidate-vs-replace-vs-add-rig promotion decision.
+rig: tycoon
+display_name: "Tycoon 2FA -- AiTM relay chain"
+description: "Actual Tycoon 2FA kill chain: AiTM session cookie capture -> refresh-token replay against Exchange -> inbox-rule persistence. Sourced from Sekoia, 2024."
+ua_profile: tycoon-chrome-win
+egress_profile: datacenter
+stop_on_error: true
+steps:
+  - atomic: T1539
+    test_name: "AiTM session cookie capture via reverse-proxy relay"
+  - atomic: T1550.001
+    test_name: "Refresh-token pivot to Outlook/Exchange"
+    requires_token_from: T1539
+  - atomic: T1114.003
+    test_name: "Create inbox forwarding rule via Graph"
+    requires_token_from: T1550.001
