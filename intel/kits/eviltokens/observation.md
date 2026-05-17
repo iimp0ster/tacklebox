@@ -67,6 +67,22 @@ Tier 2 (context only, not grounding any specific claim above):
 - `chokepoint` lives on the atomic (`exercises_chokepoint`) per the schema,
   not on the rig step. `chokepoints.md` is the cross-kit summary.
 
+## Promotion targets in the current production tree
+
+The skill's promotion step 4 calls for consolidating into an existing
+`atomics/T####-<behavior-slug>/` when one matches, else creating a new
+directory. Mapping for EvilTokens:
+
+| Draft                              | Existing atomic that matches                | Decision         |
+|------------------------------------|---------------------------------------------|------------------|
+| `T1078.004.draft.yaml`             | `atomics/T1078.004-device-code/`            | **Consolidate** -- append an EvilTokens-flavored entry to `atomic_tests[]` |
+| `T1550.001.draft.yaml`             | `atomics/T1550.001-token-refresh-swap/`     | **Consolidate** -- append an EvilTokens-flavored entry to `atomic_tests[]` |
+| `T1539.draft.yaml` (PRT minting)   | `atomics/T1539-cookie-replay/` (different behavior -- cookie *replay*, not *mint*) | **Create new**: propose `atomics/T1539-prt-cookie-mint/` |
+| `T1087.004.draft.yaml`             | `atomics/T1087.004-graph-enumeration/`      | **Consolidate** OR **Create new** `atomics/T1087.004-graph-recon-bulk/` if the kit's batch-snapshot pattern is materially distinct from the existing per-endpoint enumeration. Human judgment call. |
+
+At promotion the rig's `steps[*].atomic` and `requires_token_from` values
+get rewritten from bare T-IDs to the full slug-form IDs picked above.
+
 ## Open questions
 
 - [ ] Confirm Sekoia Part 2 (if published) -- the validator does not detect

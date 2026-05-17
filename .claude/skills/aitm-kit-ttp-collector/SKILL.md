@@ -90,9 +90,14 @@ without verification.
 2. Enumerate post-auth behaviors observable in the kit's backend or research
    grounding.
 3. Map each behavior to a MITRE T-ID with `_mapping_confidence`.
-4. Create or reuse a draft atomic per T-ID. One atomic per T-ID;
-   **per-kit variants live in `atomic_tests[]`** -- do NOT create kit-specific
-   duplicate atomics.
+4. Create or reuse a draft atomic per T-ID under
+   `intel/kits/<slug>/atomics/T####.draft.yaml`. Drafts use bare T-ID
+   filenames; promotion resolves the behavior slug (see promotion
+   workflow). Check the production tree for an existing
+   `atomics/T####-<behavior-slug>/` that matches; if one matches, plan to
+   consolidate at promotion by appending to its `atomic_tests[]`. If no
+   match, plan to create a new `atomics/T####-<behavior-slug>/` directory
+   where `<behavior-slug>` describes the *behavior*, not the kit.
 5. Order atomics into rig steps with `requires_token_from`.
 6. Tag each step with chokepoint ID + URL.
 7. Run `python tools/check_grounding.py --sources
@@ -168,16 +173,32 @@ Default windows: `within_minutes: 5` for signin, `30` for UAL.
 
 ## Output file layout
 
+Drafts (this skill writes here):
+
 ```
 intel/kits/<kit-slug>/
   observation.md             # human-readable analyst observations + sources
-  rig.draft.yaml             # draft rig with steps[*].atomic references
+  rig.draft.yaml             # draft rig; steps[*].atomic uses bare T-ID
   chokepoints.md             # per-chokepoint summary linking to detection-chokepoints URLs
   atomics/
     T1539.draft.yaml         # one file per T-ID this kit exercises
     T1550.001.draft.yaml
     T1087.004.draft.yaml
 ```
+
+Production target (human writes here at promotion):
+
+```
+atomics/T####-<behavior-slug>/T####-<behavior-slug>.yaml
+rigs/<kit-slug>.yaml         # steps[*].atomic uses the full slug ID
+```
+
+`<behavior-slug>` is descriptive of the behavior, not the kit. Existing
+examples in the production tree: `T1078.004-device-code`,
+`T1078.004-auth-broker-abuse`, `T1539-cookie-replay`,
+`T1550.001-token-refresh-swap`, `T1087.004-graph-enumeration`. Per-kit
+variants of the same behavior live in the same atomic file as additional
+entries in `atomic_tests[]`.
 
 Canonical worked example: `intel/kits/eviltokens/`. New kit write-ups should
 mirror its structure.
@@ -227,6 +248,8 @@ atomic_tests:
 
 ```yaml
 # LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic and requires_token_from use bare T-IDs in drafts;
+# promotion resolves each to the full T####-<behavior-slug> form.
 rig: <kit-slug>
 display_name: "<Kit Display Name> emulation"
 description: "Post-auth chain observed in <kit> campaigns as of YYYY-MM-DD."
@@ -298,8 +321,15 @@ Drafts in `intel/kits/<kit-slug>/` are not runnable. Promotion to
 2. Confirm `tools/check_grounding.py` passes.
 3. Generate a real UUID: `pwsh -c '[guid]::NewGuid().Guid'`. Replace the
    placeholder.
-4. Move/rename to `atomics/T####/T####.yaml`. If multiple kits share a T-ID,
-   append an entry to `atomic_tests[]` rather than duplicating the file.
+4. Decide the promotion target:
+   - **Consolidate (preferred)** if an existing
+     `atomics/T####-<slug>/T####-<slug>.yaml` matches the behavior: append
+     a new entry to its `atomic_tests[]` array. Do NOT create a duplicate
+     atomic file.
+   - **Create new** if no existing slug matches: create
+     `atomics/T####-<behavior-slug>/T####-<behavior-slug>.yaml` where
+     `<behavior-slug>` describes the *behavior*, not the kit (existing
+     examples: `T1078.004-device-code`, `T1539-cookie-replay`).
 5. Implement `executor.command` against a wrap-tool listed in
    `dependencies/manifests/`. Hand-rolled HTTP is rejected.
 6. Strip all underscored draft fields (`_citations`, `_mapping_confidence`).
@@ -309,8 +339,10 @@ Drafts in `intel/kits/<kit-slug>/` are not runnable. Promotion to
 8. Validate:
    `ajv validate -s schema/tacklebox-atomic.schema.json -d atomics/T####/T####.yaml`
 9. Move the rig to `rigs/<kit-slug>.yaml`. The `rig:` field must equal the
-   filename stem (regex `^[a-z0-9][a-z0-9-]*$`). Every `steps[*].atomic`
-   must resolve to a promoted file.
+   filename stem (regex `^[a-z0-9][a-z0-9-]*$`). Resolve every
+   `steps[*].atomic` from the bare T-ID in the draft to the full
+   `T####-<behavior-slug>` form picked in step 4. Update
+   `requires_token_from` references the same way.
 10. Validate the rig:
     `ajv validate -s schema/tacklebox-rig.schema.json -d rigs/<kit-slug>.yaml`
 11. Confirm `Tacklebox.psm1` lab-tenant guard loads cleanly. Commit message
