@@ -1,0 +1,67 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1566.002
+display_name: "Storm-2372 -- Spearphishing Link via Teams/Messaging (Device-Code Lure)"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "MS TI states lure delivery via Teams meeting invitations and messaging platforms; sub-technique (link vs. attachment) stated but no attachment mechanism described."
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "Storm-2372 generates device code requests, lures victims into entering codes via fake Teams meeting invitations with the device code embedded as the meeting ID"
+  - claim_type: identity_attack_flows
+    source_url: https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    quote_or_anchor: "Initial contact via Signal, WhatsApp, compromised Ukrainian Gov email accounts; impersonating European officials scheduling meetings"
+# Sufficiency: MS TI is tier_1 with identity_attack_flows -- sufficient for medium.
+
+# Promotion target: consolidate into atomics/T1566.002-internal-phishing/T1566.002-internal-phishing.yaml
+#   Add Storm-2372 variant to atomic_tests[]. Lateral phishing step (post-auth intra-org) maps here.
+
+atomic_tests:
+  - name: "Storm-2372 variant -- device-code lure delivery via Graph internal phishing message"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates Storm-2372 spearphishing lure delivery using Microsoft Graph to send an
+      internal phishing message containing a device-code lure embedded as a fake meeting ID.
+      In the wild, Storm-2372 uses Teams meeting invitations, Signal, and WhatsApp.
+      The lab stub uses a Graph-sent message to a lab tenant recipient.
+      Also models the post-auth lateral phishing step where Storm-2372 sends device-code
+      links to other users in the victim organisation using the compromised account.
+    supported_platforms: [windows]
+    auth_profile: graph-delegated
+    input_arguments:
+      token_cache_path:
+        description: "Path to a Graph-scoped token cache (app-only or delegated with Mail.Send)."
+        type: Path
+        default: "#{token_cache_path}"
+      target_recipient:
+        description: "UPN of the lab tenant recipient to receive the phishing message."
+        type: String
+      device_code:
+        description: "Device code value to embed as a fake meeting ID in the lure message."
+        type: String
+        default: "XXXXXXXXX"
+      sender_user_id:
+        description: "UPN or object ID of the sending account (lab tenant only)."
+        type: String
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/microsoft.graph.json
+        throw "stub -- implement against lab tenant"
+    cleanup_command: |
+      # No persistent artifact to clean up (message send only).
+      Write-Host "No cleanup required for send-only stub."
+    expected_telemetry:
+      - source: unified_audit_log
+        within_minutes: 10
+        match:
+          Operation: Send
+          ClientInfoString: Graph
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          appId: UNKNOWN_verify_against_MS_docs
+          authenticationProtocol: UNKNOWN_verify_against_MS_docs
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

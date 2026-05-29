@@ -1,0 +1,38 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic and requires_token_from use bare T-IDs in drafts;
+# promotion resolves each to the full T####-<behavior-slug> form.
+#
+# SCOPE: pre-auth relay phase (T1539, T1111) grounded by Sekoia's Sneaky 2FA post.
+# Post-auth operator actions are not described in the source; add steps once
+# a separate tier_1 citation for Sneaky post-auth behavior is located.
+#
+# At promotion, this becomes rigs/sneaky.yaml.
+
+rig: sneaky
+display_name: "Sneaky 2FA -- AiTM relay phase emulation"
+description: |
+  Pre-auth relay phase of the Sneaky 2FA AiTM kit as documented by Sekoia TDR.
+  Key architecture distinction: direct Microsoft API calls (no transparent proxy),
+  per-step hardcoded UA strings producing an "impossible device shift" detection signal.
+  Post-auth chain not documented in available sources; extend once located.
+ua_profile: edge-windows
+egress_profile: datacenter
+stop_on_error: true
+_citations:
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "Communications with Microsoft 365 API are handled directly by the phishing server; server makes requests using inconsistent hardcoded User-Agent values per authentication step"
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "POST /SAS/BeginAuth, /SAS/ProcessAuth, /SAS/EndAuth relay sequence; 2FA methods: Microsoft Authenticator, OTP, SMS"
+steps:
+  - atomic: T1539
+    test_name: "Capture session cookie via direct Microsoft API relay (lab: interactive signin)"
+    # NOTE: ua_profile above (edge-windows) is the lab default. In the wild, Sneaky
+    # uses a per-step UA rotation (iOS Safari -> Windows Edge). The wild detection
+    # signal is the INCOHERENCE between steps, not any single UA value.
+
+  - atomic: T1111
+    test_name: "Relay SAS MFA challenge (Authenticator / OTP / SMS) to Microsoft auth endpoint"
+    requires_token_from: T1539
+    # NOTE: T1111 executor is a stub. This step throws in lab until fixture implemented.

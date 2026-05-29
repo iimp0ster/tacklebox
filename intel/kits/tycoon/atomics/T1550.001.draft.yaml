@@ -1,48 +1,147 @@
 # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
 attack_technique: T1550.001
-display_name: "Refresh-token replay against Exchange/Graph after AiTM capture"
-_mapping_confidence: medium
-_mapping_confidence_rationale: "T1550.001 (Application Access Token) is the standard mapping for refresh-token redemption against an OAuth resource (here Exchange Online). T-ID not stated explicitly in cited Sekoia post."
+display_name: "AiTM – Tycoon 2FA Refresh Token Pivot via FOCI"
+_mapping_confidence: high
+_mapping_confidence_rationale: "Sekoia documents Tycoon 2FA operators using captured refresh tokens for FOCI-based resource pivoting; Dirk-Jan Mollema grounds FOCI mechanics from identity_provider lens."
 _citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Tycoon 2FA operators use captured refresh tokens to pivot to Exchange Online / Outlook resources via FOCI after initial OfficeHome capture"
+  - claim_type: kit_internals
+    source_url: https://www.microsoft.com/en-us/security/blog/2026/03/inside-tycoon2fa-adversary-in-the-middle-phishing-kit/
+    quote_or_anchor: "Inside Tycoon2FA -- refresh token weaponization, FOCI-based resource pivot (verify URL slug)"
   - claim_type: token_flows
     source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-    quote_or_anchor: "Sekoia 2025-06, introduction: 'With that cookie, an attacker can replay the session, and access the victim's account without needing to perform any further authentication.' Refresh-token pivot follows the cookie replay as the standard post-AiTM monetisation chain."
-  - claim_type: aitm_tradecraft
-    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-    quote_or_anchor: "Sekoia 2025-06, BEC section (p10): 'attackers often add their own 2FA method after compromising the account, ensuring they can still access it even if session cookies are revoked.' Refresh-token pivot to Exchange resource is the typical bridge step."
+    quote_or_anchor: "FOCI refresh token mechanics in Tycoon 2FA post-auth chain -- token reuse across client IDs"
+  - claim_type: token_flows
+    source_url: https://dirkjanm.io/getting-access-with-a-family-of-client-ids/
+    quote_or_anchor: "FOCI: a refresh token issued to any family member client can be redeemed for another family member's scope without re-authentication"
   - claim_type: entra_telemetry
     source_url: https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
-    quote_or_anchor: "Refresh-token redemption signins are logged with AuthenticationProtocol=refreshToken and the ResourceDisplayName of the target resource"
+    quote_or_anchor: "authenticationProtocol: refreshToken; ResourceDisplayName semantics for EXO pivot"
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
+    quote_or_anchor: "Tycoon 2FA in-depth: session cookie capture via Socket.IO relay enables post-auth token pivoting; operator backend orchestrates FOCI chain"
+# Lens diversity check (required for _mapping_confidence: high on kit_internals + token_flows):
+#   kit_internals:  Sekoia (infrastructure) + Microsoft TI (identity_provider) -- PASS
+#   token_flows:    Sekoia (infrastructure) + Dirk-Jan Mollema (identity_provider) -- PASS
+
+# Promotion target: consolidate into atomics/T1550.001-token-refresh-swap/T1550.001-token-refresh-swap.yaml
+#   Add this entry to atomic_tests[]. Tycoon-specific context: FOCI pivot from OfficeHome
+#   to EXO/Outlook is the documented operator pattern.
+
 atomic_tests:
-  - name: "Tycoon variant -- refresh-token pivot to Outlook/Exchange"
+  - name: "Tycoon 2FA variant -- FOCI refresh token pivot to Exchange Online"
     auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
     description: |
-      Emulates the post-AiTM refresh-token pivot. Takes the refresh token
-      captured by an upstream atomic (T1539) and redeems it against
-      /common/oauth2/token with target resource https://outlook.office.com
-      (Exchange Online resource URI). Models what Tycoon operators do
-      after acquiring the cookie/token bundle.
+      Emulates the Tycoon 2FA operator pattern of pivoting from an initial Graph
+      token (obtained via OfficeHome AiTM capture) to Exchange Online / Outlook
+      resources using a FOCI-compatible client ID. In the wild, Tycoon operators
+      use the captured refresh token without re-authentication to access mailbox
+      resources and enumerate mail for BEC targeting.
     supported_platforms: [windows]
-    auth_profile: lab-user-mfa
-    requires_token:
-      from: T1539
-      resource: https://outlook.office.com
+    auth_profile: refresh-token-swap
+    input_arguments:
+      token_input_path:
+        description: "Path to roadtools token cache from T1539 (cookie-replay) step."
+        type: Path
+      target_resource:
+        description: "Resource to pivot to (Tycoon targets EXO after initial OfficeHome capture)."
+        type: String
+        default: "https://outlook.office.com"
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      token_output_path:
+        description: "Path to write the pivoted token for downstream atomics."
+        type: Path
+        default: "#{token_cache_path}"
     executor:
       name: powershell
       command: |
         # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
-        # wrap-tool: dependencies/manifests/tokentacticsv2.json (Invoke-RefreshToEXOToken)
-        throw "stub -- implement against lab tenant"
+        # wrap-tool: dependencies/manifests/roadtx.json
+        roadtx refreshtokens `
+          --tokenfile '#{token_input_path}' `
+          --tenant '#{tenant_id}' `
+          --resource '#{target_resource}' `
+          --outfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
     expected_telemetry:
       - source: entra_signin
         within_minutes: 5
         match:
-          AuthenticationProtocol: "<UNKNOWN -- verify against MS docs>"
+          authenticationProtocol: "refreshToken"
           ResourceDisplayName: "Office 365 Exchange Online"
     exercises_chokepoint:
-      id: CP-TODO-REFRESH-REPLAY
-      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO-REFRESH-REPLAY
-    references:
-      - https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
-      - https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
-      - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
+      id: aitm-websocket-relay
+      url: https://iimp0ster.github.io/detection-chokepoints/drafts/credential-access/aitm-websocket-relay
+
+  # -----------------------------------------------------------------------
+  # NEW VARIANT (2026-05-27) — Elastic Security Labs source
+  # Device-Code-Grant phishing via MAB app ID — a distinct Tycoon 2FA variant
+  # that does NOT require a relay page (no phishing URL to block).
+  # The existing entry above covers FOCI refresh token pivot post-relay;
+  # this entry covers the alternative device-code initial access path.
+  # -----------------------------------------------------------------------
+  - name: "Tycoon 2FA variant -- device-code-grant phishing via MAB app ID (Elastic 2026-05-27)"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates Tycoon 2FA's device-code-grant phishing variant. The kit requests a
+      device code using the Microsoft Authentication Broker app ID
+      (29d9ed98-a469-4536-ade2-f981bc1d605e), presents it to the victim as a
+      "verification code," and polls oauth2/token until the victim redeems it at
+      microsoft.com/devicelogin. The resulting Auth Broker refresh token is
+      FOCI-compatible, granting access to Exchange, Graph, SharePoint, and Teams.
+
+      Token progression: none → refreshToken → (optional PRT via T1098.005 chain).
+
+      Key telemetry: authenticationProtocol: deviceCode + appId 29d9ed98-... +
+      isInteractive: true in Entra ID SigninLogs.
+
+      Lab-safe execution: roadtx or TokenTacticsV2 can drive the device-code flow
+      interactively in the lab tenant. The kit's polling loop is replaced by a
+      manually completed interactive sign-in.
+
+      Prevention: CA policy "Block device code flow" returns error 53003.
+      If deployed in the lab tenant, expect sign-in failure (verify CA policy
+      state before running).
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      token_output_path:
+        description: "Path to write the Auth Broker refresh token cache."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/tokentacticsv2.json
+        # MAB app ID: 29d9ed98-a469-4536-ade2-f981bc1d605e
+        # Drives device-code flow to Microsoft Authentication Broker; user must
+        # authenticate at microsoft.com/devicelogin to complete the flow.
+        throw "stub -- implement with roadtx device --client-id '29d9ed98-a469-4536-ade2-f981bc1d605e' --tenant '#{tenant_id}' against lab tenant"
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 10
+        match:
+          AuthenticationProtocol: "deviceCode"
+          AppId: "29d9ed98-a469-4536-ade2-f981bc1d605e"
+          ResultType: "0"
+          IsInteractive: "true"
+    exercises_chokepoint:
+      id: oauth-device-code-phishing
+      url: https://iimp0ster.github.io/detection-chokepoints/drafts/defense-evasion/oauth-device-code-phishing

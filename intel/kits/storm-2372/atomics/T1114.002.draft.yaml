@@ -1,0 +1,62 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1114.002
+display_name: "Storm-2372 -- Remote Email Collection via Microsoft Graph After Token Capture"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "MS TI states Email exfiltration via Microsoft Graph of the emails found from these searches but exact Graph endpoint not specified; medium pending endpoint confirmation."
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "Email exfiltration via Microsoft Graph of the emails found from these searches"
+# Sufficiency: MS TI is tier_1 with identity_attack_flows -- sufficient alone for medium.
+# Note: specific Graph endpoint not stated; medium confidence pending DFIR confirmation.
+
+# Promotion target: consolidate into atomics/T1114.002-mail-items-accessed/T1114.002-mail-items-accessed.yaml
+#   Add Storm-2372 variant to atomic_tests[].
+
+atomic_tests:
+  - name: "Storm-2372 variant -- remote email collection via Graph of keyword-matching messages"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates Storm-2372 post-auth email exfiltration via Microsoft Graph.
+      Actor collects emails identified by prior keyword search (T1087.004 step).
+      MS TI verbatim: Email exfiltration via Microsoft Graph of the emails found
+      from these searches.
+      Requires an access token obtained from T1078.004 (device-code theft step).
+      Generates MailItemsAccessed events in UAL (E5 licence required).
+    supported_platforms: [windows]
+    auth_profile: graph-delegated
+    input_arguments:
+      token_cache_path:
+        description: "Path to the token cache from T1078.004 step."
+        type: Path
+        default: "tacklebox-storm2372-tokens.json"
+      target_user_id:
+        description: "UPN or object ID of the compromised mailbox."
+        type: String
+      message_ids_path:
+        description: "Path to JSON file containing message IDs from T1087.004 keyword search."
+        type: Path
+        default: "tacklebox-storm2372-keyword-hits.json"
+      output_path:
+        description: "Path to write collected message content."
+        type: Path
+        default: "tacklebox-storm2372-exfil.json"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/graphrunner.json
+        throw "stub -- implement against lab tenant"
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    expected_telemetry:
+      - source: ual
+        within_minutes: 30
+        match:
+          Operations: MailItemsAccessed
+          ClientInfoString: Graph
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

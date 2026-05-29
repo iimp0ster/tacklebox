@@ -1,0 +1,105 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1539
+display_name: "AiTM session-cookie capture -- Sneaky 2FA direct-API relay variant"
+_mapping_confidence: high
+_mapping_confidence_rationale: "T1539 (Steal Web Session Cookie) is unambiguously the behavior: Sekoia tier_1 source explicitly states Sneaky 2FA harvests 'Microsoft 365 session cookies to bypass the MFA process during subsequent authentication'. The direct-API relay variant is architecturally distinct from proxy-relay kits and produces a specific detection signal (impossible device shift) documented with exact UA strings in the source."
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "Communications with Microsoft 365 API are handled directly by the phishing server, unlike other AiTM phishing kits that use proxies; server makes requests to Microsoft API using inconsistent hardcoded User-Agent values per authentication step"
+  - claim_type: api_endpoints
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "POST /login, /SAS/BeginAuth, /SAS/ProcessAuth, /SAS/EndAuth, /kmsi; victim submission POST /[a-zA-Z0-9]{150}/validate with em= and pa= parameters"
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "Sigma rule: Login:login step uses Safari iOS UA; Login:resume step uses Edge Windows UA; same correlation ID within 10 minutes -- impossible device shift"
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Cross-kit detection pattern 1: User-Agent anomalies -- relays hardcode the UA value rather than forwarding the victim's"
+
+# Promotion note: consolidate into atomics/T1539-cookie-replay/T1539-cookie-replay.yaml
+# by appending a new entry to atomic_tests[]. Do NOT create a new atomic file.
+# The sneaky variant is distinguished by:
+#   - Direct Microsoft API relay (no transparent proxy)
+#   - Per-step hardcoded UA strings producing an impossible device shift
+#   - iOS Safari UA on Login:login, Windows Edge UA on Login:resume
+
+atomic_tests:
+  - name: "Sneaky 2FA -- AiTM session-cookie capture (lab substitute: interactive signin)"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the session-cookie capture step of the Sneaky 2FA AiTM kit.
+
+      Architecture (from Sekoia): Unlike proxy-relay kits (Mamba/EvilProxy),
+      Sneaky 2FA's phishing server calls Microsoft 365 APIs DIRECTLY, forwarding
+      requests on behalf of the victim. Each authentication step uses a different
+      hardcoded User-Agent string, producing an "impossible device shift" in the
+      sign-in log: the Login:login step uses a Safari iOS UA and the Login:resume
+      step uses a Windows Edge UA -- both under the same correlation ID within 10
+      minutes. This incoherence across auth steps is the primary detection signal.
+
+      Exact UAs per Sekoia Sigma rule:
+        Login:login (Safari iOS):
+          Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X)
+          AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1
+        Login:resume (Edge Windows):
+          Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/... Safari/537.36 Edg/128.0.0.0
+
+      Lab substitute: Tacklebox does not stand up a relay. This atomic performs
+      an interactive signin via roadtx and persists the resulting session cookie.
+      The impossible-device-shift UA signal is absent in the lab execution; the
+      atomic exercises the downstream cookie-replay telemetry shape only.
+
+      Deployed on: WordPress sites and attacker-controlled domains (~100 domains
+      identified by Jan 2025). Backend license check: POST to sneakylog[.]store/api/key.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      resource:
+        description: "Target resource URI."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token/cookie cache."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/roadtx.json
+        roadtx interactiveauth `
+          --tenant '#{tenant_id}' `
+          --resource '#{resource}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    expected_telemetry:
+      # Primary wild-capture signal: impossible device shift within same correlationId.
+      # Both events below should share the same correlationId value.
+      - source: entra_signin
+        within_minutes: 10
+        match:
+          # Login:login step UA (from Sekoia Sigma rule, verbatim):
+          userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1"
+          # Entra-native field name for request type / auth step -- verify against MS Learn:
+          requestType: "<UNKNOWN -- verify against MS docs>"
+      - source: entra_signin
+        within_minutes: 10
+        match:
+          # Login:resume step UA (from Sekoia Sigma rule, verbatim):
+          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 Edg/128.0.0.0"
+          requestType: "<UNKNOWN -- verify against MS docs>"
+      # NOTE: lab substitute produces a real user UA (not the kit's hardcoded strings).
+      # The correlation group variance (iOS then Windows within 10m) is not reproducible
+      # without standing up the relay. Validate field names against MS Learn before promotion.
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

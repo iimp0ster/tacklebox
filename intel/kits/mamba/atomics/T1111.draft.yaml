@@ -1,0 +1,68 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1111
+display_name: "MFA relay interception -- Mamba 2FA OTP and push-notification relay"
+_mapping_confidence: high
+_mapping_confidence_rationale: "T1111 (Multi-Factor Authentication Interception) directly describes the behavior: Mamba's relay intercepts OTP codes and authenticator push notifications from the victim in real-time and replays them to Microsoft's auth endpoint. Sekoia tier_1 source explicitly states 'handles two-step verifications for non-phishing-resistant MFA methods such as one-time codes and app notifications' and documents the otp_command Socket.IO event with phish_otp parameter."
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    quote_or_anchor: "otp_command Socket.IO event with phish_otp parameter; phish_state values RQ_OTP_NOPASS_APP, RQ_OTP_APP, RQ_OTP_APP_CODE, RQ_OTP_PHONE"
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    quote_or_anchor: "handles two-step verifications for non-phishing-resistant MFA methods such as one-time codes and app notifications"
+
+# Promotion note: no existing T1111-* atomic in production tree.
+# At promotion, create atomics/T1111-mfa-relay-interception/T1111-mfa-relay-interception.yaml.
+# <behavior-slug> = mfa-relay-interception (describes the behavior, not the kit).
+#
+# STUB ONLY -- executor cannot be implemented without a relay fixture.
+# See observation.md "Open questions" #3 for fixture design considerations.
+
+atomic_tests:
+  - name: "Mamba 2FA -- real-time OTP / authenticator-push relay interception"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the MFA relay step of the Mamba 2FA AiTM kit.
+      Mamba's Socket.IO relay intercepts MFA challenges from the victim in real time:
+        - OTP codes: victim enters code on phishing page -> otp_command event ->
+          relay submits phish_otp to Microsoft before the code expires.
+        - Authenticator push: relay triggers Microsoft push -> victim approves on
+          real device -> relay captures approval and continues auth flow.
+      phish_state values RQ_OTP_APP, RQ_OTP_APP_CODE, RQ_OTP_PHONE, RQ_OTP_NOPASS_APP
+      signal which MFA method is active.
+
+      This technique targets non-phishing-resistant MFA only (TOTP, SMS, push).
+      FIDO2/passkeys and certificate-based auth are not interceptable by this method.
+
+      Lab substitute: NONE currently defined.
+      Tacklebox has no mechanism to relay a live MFA challenge from a victim device.
+      A future fixture could use a lab tenant with a known TOTP seed to inject a
+      valid code at the relay step, but this is not yet implemented.
+
+      This stub documents the behavior and telemetry expectation so detection
+      engineering can validate the sign-in log shape without full relay emulation.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: TBD -- no wrap-tool currently supports relay-based MFA interception.
+        # TODO: design fixture using known TOTP seed in lab tenant.
+        throw "stub -- MFA relay interception requires relay fixture; see observation.md open questions"
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          # MFA completes successfully in the sign-in log because the relay
+          # forwards a valid OTP/push approval. Detection signal is NOT an MFA
+          # failure but rather the combination of: relay-origin IP, hardcoded UA,
+          # and a successful MFA completion that the legitimate user did not initiate.
+          authenticationRequirement: "<UNKNOWN -- verify against MS docs>"
+          authenticationDetails: "<UNKNOWN -- verify against MS docs>"
+          # Expected: mfaType reflects the intercepted method (e.g. oneTimePassword,
+          # microsoftAuthenticatorPasswordless) -- exact field name per MS Learn.
+          mfaDetail: "<UNKNOWN -- verify against MS docs>"
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

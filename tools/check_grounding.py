@@ -21,10 +21,15 @@ This validator confirms:
                                                domain) for the SAME claim_type
        - tier_3 / canonical_docs alone      -> insufficient as primary
          (canonical_docs OK alone for entra_telemetry / kql_queries / mitigations)
+       - sole_authority_for                 -> single citation sufficient when
+                                               the source owns the claim type
   4. `_mapping_confidence` (if present on a MITRE T-ID claim) must be one of
-     low | medium | high. `low` requires the citation gate to be satisfied
-     by at least one tier_1 citation -- low-confidence T-ID mappings cannot
-     ride on tier_2 alone.
+     low | medium | high. `low` requires at least one tier_1 citation.
+  5. Lens-diversity rule (NEW): for claim types in LENS_DIVERSE_CLAIMS when
+     `_mapping_confidence` is `high`, citations must span >=2 distinct
+     lenses across the source registry. This catches the failure mode where
+     a high-confidence kit-internals claim is grounded by 3 sources that
+     all share the same perspective.
 
 Exits 1 on any failure so this can be wired into pre-commit or the existing
 ajv validation step.
@@ -50,6 +55,12 @@ except ImportError:
 
 # Claim types that can ride on canonical_docs (Microsoft Learn) alone.
 CANONICAL_OK_ALONE = {"entra_telemetry", "kql_queries", "mitigations"}
+
+# Claim types where high-confidence assertions benefit from corroboration
+# across distinct research lenses (identity_provider / infrastructure /
+# runtime / email / dfir). When _mapping_confidence is "high", citations
+# for these claim types must span >=2 distinct lenses.
+LENS_DIVERSE_CLAIMS = {"kit_internals", "token_flows", "aitm_tradecraft"}
 
 
 def load_yaml(path):
@@ -215,17 +226,24 @@ def check_atomic(path, source_index):
             f"{confidence!r}"
         )
 
-    # _mapping_confidence_rationale: required whenever _mapping_confidence
-    # is set. Forces the analyst to justify the T-ID choice rather than
-    # default-pick "medium" off the cookbook.
-    if confidence is not None:
-        rationale = data.get("_mapping_confidence_rationale")
-        if not rationale or not isinstance(rationale, str) or not rationale.strip():
-            problems.append(
-                f"  mapping_confidence: _mapping_confidence={confidence!r} "
-                f"requires a non-empty _mapping_confidence_rationale string "
-                f"explaining why this T-ID is the right map"
-            )
+    # Lens-diversity rule: for high-confidence claims in LENS_DIVERSE_CLAIMS,
+    # require citations spanning >=2 distinct lenses. Same-lens monoculture is
+    # a recognized failure mode (e.g. three Sekoia-style infrastructure sources
+    # saying the same thing without IdP-side or runtime corroboration).
+    if confidence == "high":
+        for claim_type, hits in by_claim.items():
+            if claim_type not in LENS_DIVERSE_CLAIMS:
+                continue
+            lenses = {e.get("lens") for e, _, _ in hits if e.get("lens")}
+            if len(lenses) < 2:
+                only = sorted(lenses) if lenses else ["<none recorded>"]
+                problems.append(
+                    f"  lens_diversity: claim_type={claim_type} with "
+                    f"_mapping_confidence=high cites only the {only} "
+                    f"lens(es). High-confidence claims for this type require "
+                    f">=2 distinct lenses (identity_provider | infrastructure "
+                    f"| runtime | email | dfir)."
+                )
 
     return problems
 

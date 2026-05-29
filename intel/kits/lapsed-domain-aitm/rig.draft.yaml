@@ -1,0 +1,28 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic uses bare T-IDs in drafts.
+#
+# SCOPE: T1539 only -- this is the sole behavior documented by the Sublime source.
+# Post-auth operator actions not described; extend once a tier_1 source is located.
+#
+# GROUNDING GAP: T1539 draft has only one tier_2 citation (Sublime). The rig
+# cannot be promoted until the T1539 atomic's grounding gap is resolved.
+
+rig: lapsed-domain-aitm
+display_name: "Lapsed-domain AiTM campaign emulation (team.ru.com / team.za.com)"
+description: |
+  AiTM credential-capture campaign using a lapsed law-firm domain for email
+  delivery, a multi-stage gate with bot/headless detection, and a per-org-branded
+  O365 AiTM page at team.za[.]com Stage 3. Described by Sublime Security June 2025.
+  Post-auth chain not documented; rig covers capture phase only.
+ua_profile: edge-windows
+egress_profile: datacenter
+stop_on_error: true
+_citations:
+  - claim_type: aitm_tradecraft
+    source_url: https://sublime.security/blog/aitm-phishing-with-russian-infrastructure-and-detection-evasion-from-a-lapsed-domain/
+    quote_or_anchor: "actual AITM phishing page that collects entered credentials, which are legitimately forwarded to Microsoft to login while also being captured"
+    tier: tier_2
+    grounding_status: INSUFFICIENT_ALONE -- see T1539.draft.yaml _grounding_gap
+steps:
+  - atomic: T1539
+    test_name: "Capture session cookie via AiTM relay (lab: interactive signin)"

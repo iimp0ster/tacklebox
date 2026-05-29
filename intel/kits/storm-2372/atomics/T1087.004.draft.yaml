@@ -1,0 +1,66 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1087.004
+display_name: "Storm-2372 -- Post-Auth Graph Keyword Search Across Victim Messages"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "MS TI attributes Graph-based message search but specific /messages API endpoint not made explicit; inferred from Microsoft Graph to search through messages statement."
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "keyword search across messages for username, password, admin, teamviewer, anydesk, credentials, secret, ministry, gov"
+# Sufficiency: MS TI is tier_1 with identity_attack_flows -- sufficient alone for medium.
+# Note: specific Graph API path not stated; medium confidence pending per-source confirmation.
+
+# Promotion target: consolidate into atomics/T1087.004-graph-enumeration/T1087.004-graph-enumeration.yaml
+#   Add Storm-2372 variant to atomic_tests[].
+
+atomic_tests:
+  - name: "Storm-2372 variant -- Graph keyword search across victim messages"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates Storm-2372 post-auth keyword search across victim messages using
+      Microsoft Graph. Actor searches for: username, password, admin, teamviewer,
+      anydesk, credentials, secret, ministry, gov (verbatim from MS TI).
+      Requires an access token obtained from T1078.004 (device-code theft step).
+      Exact Graph API path not specified in available sources; stub uses
+      /users/{id}/messages with a search query filter -- verify at promotion.
+    supported_platforms: [windows]
+    auth_profile: graph-delegated
+    input_arguments:
+      token_cache_path:
+        description: "Path to the token cache from T1078.004 step."
+        type: Path
+        default: "tacklebox-storm2372-tokens.json"
+      target_user_id:
+        description: "UPN or object ID of the compromised user."
+        type: String
+      search_keywords:
+        description: "Space-separated keywords to search (verbatim from MS TI)."
+        type: String
+        default: "password admin credentials secret ministry gov"
+      output_path:
+        description: "Path to write keyword-matching message metadata."
+        type: Path
+        default: "tacklebox-storm2372-keyword-hits.json"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/graphrunner.json
+        throw "stub -- implement against lab tenant"
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          ResourceDisplayName: Microsoft Graph
+          authenticationProtocol: UNKNOWN_verify_against_MS_docs
+      - source: graph_audit
+        within_minutes: 10
+        match:
+          activityDisplayName: UNKNOWN_verify_against_MS_docs
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

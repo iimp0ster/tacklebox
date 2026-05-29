@@ -1,0 +1,146 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1098.005
+display_name: "AiTM – Tycoon 2FA Synthetic Device Registration for PRT Persistence"
+_mapping_confidence: high
+_mapping_confidence_rationale: >
+  T1098.005 (Account Manipulation: Device Registration) directly stated in Elastic
+  Security Labs tier_1 source as the Tycoon 2FA persistence mechanism post-session-theft.
+  The full DRS enrollment API chain (MAB token resource-swap → EnrollmentServer/device
+  POST with axios UA → PRT acquisition) is documented verbatim with endpoint paths and
+  request structure. PRT survival of revokeSignInSessions confirmed from same source.
+_citations:
+  - claim_type: kit_internals
+    source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+    quote_or_anchor: "Kit enrolls synthetic device via DRS EnrollmentServer/device endpoint using axios user agent, not native Dsreg/DeviceRegistrationClient/Dalvik"
+  - claim_type: api_endpoints
+    source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+    quote_or_anchor: "POST https://enterpriseregistration.windows.net/EnrollmentServer/device with MAB refresh token resource-swapped to urn:ms-drs:enterpriseregistration.windows.net"
+  - claim_type: token_flows
+    source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+    quote_or_anchor: "Token progression: MAB refresh token → DRS access token → EnrollmentServer/device → device cert + DeviceId → JWT bearer grant → primaryRefreshToken"
+  - claim_type: entra_telemetry
+    source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+    quote_or_anchor: "operationName: Add registered users to device resultType 0 in Entra ID AuditLogs; userAgent axios/1.15.2 not native Dsreg"
+  - claim_type: mitigations
+    source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+    quote_or_anchor: "IR sequence: disable account → enumerate/delete registered devices → revokeSignInSessions → reset password. Skipping device deletion leaves PRT valid."
+  - claim_type: entra_telemetry
+    source_url: https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-in-log-activity-details
+    quote_or_anchor: "Entra ID AuditLogs operationName field; Device Registration Service resource (urn:ms-drs:enterpriseregistration.windows.net)"
+  - claim_type: kit_internals
+    source_url: https://dirkjanm.io/phishing-for-microsoft-entra-primary-refresh-tokens/
+    quote_or_anchor: "EnrollmentServer/device endpoint; DRS token acquisition chain; device certificate enrollment for PRT binding"
+  - claim_type: token_flows
+    source_url: https://dirkjanm.io/phishing-for-microsoft-entra-primary-refresh-tokens/
+    quote_or_anchor: "JWT bearer grant to exchange device certificate for PRT; PRT bound to device key survives session revocation"
+# Lens diversity check (required for _mapping_confidence: high):
+#   Elastic (dfir lens): kit_internals, api_endpoints, token_flows -- dfir
+#   dirkjanm.io (identity_provider lens): kit_internals, token_flows -- identity_provider
+#   Result: dfir + identity_provider = 2 distinct lenses -- PASS
+
+# Promotion target:
+#   consolidate into atomics/T1098.005-device-registration-prt/T1098.005-device-registration-prt.yaml
+#   The existing entry covers generic device registration + PRT via roadtx.
+#   This Tycoon variant adds:
+#     1. DRS enrollment via MAB client ID resource-swap (specific to Tycoon)
+#     2. Non-native UA context (axios vs. Dsreg)
+#     3. PRT survival of revokeSignInSessions (IR gap documentation)
+#     4. Updated telemetry expectations including the non-native UA filter
+#   Append as a new atomic_tests[] entry, do NOT create a separate directory.
+
+atomic_tests:
+  - name: "Tycoon 2FA variant -- DRS device enrollment + PRT chain via MAB resource-swap"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the Tycoon 2FA persistence chain: after obtaining an MAB refresh token
+      (from T1539 relay capture or T1550.001 device-code step), the kit registers a
+      synthetic device via the Device Registration Service (DRS) and obtains a
+      Primary Refresh Token (PRT) bound to that device. The PRT survives
+      revokeSignInSessions — critical gap in standard IR playbooks.
+
+      In the wild, Tycoon uses axios/1.15.2 as the HTTP client UA for the
+      EnrollmentServer/device POST call (not native Dsreg/DeviceRegistrationClient).
+      This is the enrollment audit event's distinguishing telemetry signal.
+
+      Lab-safe substitution: roadtx performs the resource-swap and DRS enrollment
+      with the default roadtx UA. The non-native axios/1.15.2 UA is not reproduced
+      in the lab but is documented in expected_telemetry for reference. To exercise
+      the UA-detection signal specifically, pass a custom User-Agent header matching
+      'axios/1.15.2' via the ua_override argument.
+
+      IR playbook warning (exercise after remediation): run this atomic, then run
+      revokeSignInSessions WITHOUT deleting the device to confirm PRT remains valid.
+      This validates that the IR sequence MUST include device deletion first.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      device_name:
+        description: "Display name for the synthetic registered device."
+        type: String
+        default: "TackleboxTycooonLabDevice"
+      token_input_path:
+        description: "Path to MAB-scoped token cache from T1539 or T1550.001 step."
+        type: Path
+        default: "#{token_cache_path}"
+      prt_output_path:
+        description: "Path to write the acquired PRT for downstream token-minting."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/aadinternals.json  (roadtx also covers device reg)
+        # Tycoon DRS chain:
+        #   Step 1: Resource-swap MAB refresh token → DRS access token
+        roadtx refreshtokens `
+          --tokenfile '#{token_input_path}' `
+          --tenant '#{tenant_id}' `
+          --resource 'urn:ms-drs:enterpriseregistration.windows.net' `
+          --outfile '#{prt_output_path}'
+        #   Step 2: Register synthetic device (generates EnrollmentServer/device POST)
+        roadtx device `
+          --action register `
+          --name '#{device_name}' `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{prt_output_path}'
+        #   Step 3: Acquire PRT bound to new device
+        roadtx prt `
+          --action request `
+          --tenant '#{tenant_id}' `
+          --tokenfile '#{prt_output_path}'
+    cleanup_command: |
+      # Delete the synthetic device from Entra ID
+      roadtx device `
+        --action delete `
+        --name '#{device_name}' `
+        --tenant '#{tenant_id}' `
+        --tokenfile '#{prt_output_path}'
+      if (Test-Path -LiteralPath '#{prt_output_path}') {
+          Remove-Item -LiteralPath '#{prt_output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_auditlogs
+        within_minutes: 10
+        match:
+          operationName: "Add registered users to device"
+          resultType: "0"
+          # Tycoon in-the-wild UA (not reproduced by roadtx in lab):
+          # userAgent: "axios/1.15.2"
+          # Lab stub UA: roadtx default UA
+      - source: entra_signin
+        within_minutes: 10
+        match:
+          ResourceDisplayName: "Device Registration Service"
+          authenticationProtocol: "refreshToken"
+      - source: graph_activity_logs
+        within_minutes: 15
+        match:
+          incomingTokenType: "primaryRefreshToken"
+    exercises_chokepoint:
+      id: aitm-device-prt-enrollment
+      url: https://iimp0ster.github.io/detection-chokepoints/drafts/persistence/aitm-device-prt-enrollment

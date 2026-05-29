@@ -1,0 +1,54 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic uses bare T-IDs in drafts; promotion resolves each to full T####-<behavior-slug>.
+#
+# NOTE: This rig documents the Storm-2372 device-code phishing kill chain.
+# The post-Feb-14 device registration step (T1098.005) requires the Microsoft
+# Authentication Broker client ID and should be treated as a conditional branch.
+# See observation.md para Campaign evolution (Feb 2025) before promoting.
+
+rig: storm-2372
+display_name: "Storm-2372 Device-Code Phishing Emulation (draft)"
+description: |
+  TTP-accurate kill chain for Storm-2372 device-code phishing campaign as of
+  February 2025 (Microsoft TI) and April 2025 (Volexity).
+  Kill chain:
+    1. T1566.002 -- spearphishing link via Teams/messaging platform (device-code lure)
+    2. T1078.004 -- device-code OAuth token theft (access + refresh token capture)
+    3. T1087.004 -- Graph keyword search across victim messages
+    4. T1114.002 -- remote email collection via Microsoft Graph
+    5. T1098.005 -- device registration to Entra ID via Auth Broker (post-Feb 14)
+  Actor proxy profile: regionally appropriate proxies (no ASN specifics available).
+  Attribution: Russian-aligned, moderate confidence (Microsoft TI).
+ua_profile: UNKNOWN_verify_against_MS_docs
+egress_profile: regional-proxy
+stop_on_error: true
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: Storm-2372 conducts device code phishing campaign -- device code flow, token capture, Graph recon, device registration
+  - claim_type: identity_attack_flows
+    source_url: https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    quote_or_anchor: UTA0352/UTA0355 device-code phishing -- VSCode client ID, device registration via Auth Broker
+  - claim_type: aitm_tradecraft
+    source_url: https://www.proofpoint.com/us/blog/threat-insight/access-granted-phishing-device-code-authorization-account-takeover
+    quote_or_anchor: Access granted -- device code phishing actors including TA2723 and UNK_AcademicFlare; widespread adoption by September 2025
+
+steps:
+  - atomic: T1566.002
+    test_name: "Device-code lure delivery via Teams meeting invitation / internal phishing"
+
+  - atomic: T1078.004
+    test_name: "Device-code OAuth token theft -- access and refresh token capture"
+
+  - atomic: T1087.004
+    test_name: "Graph keyword search across victim messages (username, password, admin, gov)"
+    requires_token_from: T1078.004
+
+  - atomic: T1114.002
+    test_name: "Remote email collection via Microsoft Graph of keyword-matching messages"
+    requires_token_from: T1078.004
+
+  - atomic: T1098.005
+    test_name: "Device registration to Entra ID via Microsoft Authentication Broker (post-Feb 14)"
+    requires_token_from: T1078.004
+    note: "Post-Feb 14 technique only. Requires Auth Broker client ID. Enables PRT generation."

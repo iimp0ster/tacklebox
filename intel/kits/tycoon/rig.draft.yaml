@@ -1,23 +1,52 @@
 # LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
-# steps[*].atomic and requires_token_from use bare T-IDs in drafts;
-# promotion resolves each to the full T####-<behavior-slug> form.
+# steps[*].atomic uses bare T-IDs in drafts; promotion resolves each to full T####-<behavior-slug>.
 #
-# Note: rigs/tycoon.yaml already exists in the production tree and emulates
-# the Tycoon kill chain via device-code phishing as a lab-safe primitive.
-# This draft describes the *actual* Tycoon AiTM chain. See observation.md
-# for the consolidate-vs-replace-vs-add-rig promotion decision.
+# NOTE: This rig documents the TTP-accurate Tycoon 2FA kill chain (T1539 AiTM relay).
+# The production rig at rigs/tycoon.yaml uses T1078.004-device-code as step 1 -- a
+# lab-safe approximation. See observation.md §"Production rig divergence" before promoting.
+
 rig: tycoon
-display_name: "Tycoon 2FA -- AiTM relay chain"
-description: "Actual Tycoon 2FA kill chain: AiTM session cookie capture -> refresh-token replay against Exchange -> inbox-rule persistence. Sourced from Sekoia, 2024."
+display_name: "Tycoon 2FA AiTM emulation (TTP-accurate draft)"
+description: |
+  TTP-accurate post-auth kill chain for Tycoon 2FA as of June 2025 / March 2026.
+  Kill chain:
+    1. T1539  -- AiTM session cookie capture (lab: roadtx cookie injection)
+    2. T1550.001 -- Refresh token pivot from OfficeHome to Exchange Online via FOCI
+    3. T1087.004 -- Graph API enumeration (/me, /users, /organization)
+    4. T1114.002 -- Mailbox harvest (MailItemsAccessed)
+    5. T1114.003 -- Inbox rule for persistent financial-keyword exfiltration
+  Tycoon infrastructure: Chrome/Windows UA, datacenter egress (AS9009/AS29802).
 ua_profile: tycoon-chrome-win
 egress_profile: datacenter
 stop_on_error: true
+_citations:
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Tycoon 2FA kill chain: relay -> cookie capture -> FOCI pivot -> mailbox access -> inbox rule"
+  - claim_type: aitm_tradecraft
+    source_url: https://www.microsoft.com/en-us/security/blog/2026/03/inside-tycoon2fa-adversary-in-the-middle-phishing-kit/
+    quote_or_anchor: "Inside Tycoon2FA -- post-auth operator sequence (verify URL slug)"
+
 steps:
   - atomic: T1539
-    test_name: "AiTM session cookie capture via reverse-proxy relay"
-  - atomic: T1550.001
-    test_name: "Refresh-token pivot to Outlook/Exchange"
+    test_name: "Relay cookie injection (lab substitute for Tycoon AiTM capture)"
+
+  - atomic: T1098.005
+    test_name: "Synthetic device registration + PRT acquisition via MAB resource-swap"
     requires_token_from: T1539
-  - atomic: T1114.003
-    test_name: "Create inbox forwarding rule via Graph"
+
+  - atomic: T1550.001
+    test_name: "FOCI refresh token pivot to Exchange Online"
+    requires_token_from: T1539
+
+  - atomic: T1087.004
+    test_name: "5-category Graph recon burst (operator console simulation)"
+    requires_token_from: T1539
+
+  - atomic: T1114.002
+    test_name: "Mailbox harvest for BEC targeting"
     requires_token_from: T1550.001
+
+  - atomic: T1114.003
+    test_name: "Inbox forwarding rule for persistent financial-keyword exfil"
+    requires_token_from: T1539
