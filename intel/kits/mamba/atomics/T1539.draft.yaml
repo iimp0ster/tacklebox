@@ -1,0 +1,88 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1539
+display_name: "AiTM session-cookie capture -- Mamba 2FA relay variant"
+_mapping_confidence: high
+_mapping_confidence_rationale: "T1539 (Steal Web Session Cookie) is directly and unambiguously the behavior described: Mamba's Socket.IO relay captures Entra session cookies (ESTSAUTH/ESTSAUTHPERSISTENT) from the victim's browser and exfils them to the operator. Sekoia tier_1 source describes this as the core kit mechanic."
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    quote_or_anchor: "s2c_cookies event signals credential capture completion; victim redirected to endUrl"
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    quote_or_anchor: "relay servers perform requests to the Microsoft authentication servers; Socket.IO new-session event passes ua, timeZone, browserLanguage"
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Cross-kit detection pattern 1: User-Agent anomalies -- relays hardcode the UA value rather than forwarding the victim's"
+
+# Promotion note: consolidate into atomics/T1539-cookie-replay/T1539-cookie-replay.yaml
+# by appending a new entry to atomic_tests[]. Do NOT create a new atomic file.
+# The mamba variant is distinguished by: Socket.IO relay fingerprint, IPRoyal residential
+# proxy egress (defeats ASN signal), and Firefox/Windows UA profile.
+
+atomic_tests:
+  - name: "Mamba 2FA -- AiTM session-cookie capture (lab substitute: interactive signin)"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the session-cookie capture step of the Mamba 2FA AiTM kit.
+      Mamba operates a Socket.IO reverse-proxy relay that intercepts a victim's
+      Microsoft login and captures the resulting Entra session cookie (ESTSAUTH /
+      ESTSAUTHPERSISTENT), exfiltrating it to the operator via Telegram.
+
+      Lab substitute: Tacklebox does not stand up a relay. This atomic performs
+      an interactive signin from a Tacklebox client using roadtx and persists the
+      resulting session cookie to disk. The relayed-signin UA anomaly and relay-ASN
+      source-IP signals are absent; the atomic exercises the downstream
+      cookie-replay telemetry shape only.
+
+      Mamba-specific infrastructure context (from Sekoia):
+        - Relay domains rotated weekly; IPv6 block 2607:5500:3000::/48
+        - IPRoyal residential proxies used from Oct 2024 (defeats ASN detection)
+        - ua_profile should be set to mamba-firefox-win (Firefox/Windows UA
+          is the kit's hardcoded relay UA per existing rigs/mamba.yaml)
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      resource:
+        description: "Target resource URI (Mamba typically targets OfficeHome or Office365)."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token/cookie cache."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/roadtx.json
+        roadtx interactiveauth `
+          --tenant '#{tenant_id}' `
+          --resource '#{resource}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          # The relay-relayed signin UA would show a library/hardcoded UA string.
+          # Lab substitute produces a real browser UA -- the relay-UA anomaly is absent.
+          # Field present in Entra sign-in logs; exact field name per MS Learn.
+          userAgent: "<UNKNOWN -- verify against MS docs>"
+          # IPRoyal proxy IPs would appear here in wild; lab produces local IP.
+          ipAddress: "<UNKNOWN -- verify against MS docs>"
+      - source: ual
+        within_minutes: 15
+        match:
+          Operations: "UserLoggedIn"
+          # Cookie-based auth signal per Sekoia cross-kit relay detection patterns.
+          AuthenticationType: "<UNKNOWN -- verify against MS docs>"
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

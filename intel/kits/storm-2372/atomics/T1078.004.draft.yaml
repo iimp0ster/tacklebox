@@ -1,0 +1,75 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1078.004
+display_name: "Storm-2372 -- Device-Code OAuth Flow Credential Theft (Access + Refresh Token Capture)"
+_mapping_confidence: high
+_mapping_confidence_rationale: "MS TI explicitly names device code flow; uncontested; capture the authentication access and refresh tokens verbatim stated."
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "capture the authentication access and refresh tokens that are generated, then use those tokens to access the targets accounts and data"
+  - claim_type: entra_telemetry
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "ErrorCode 50199 (pause for user code entry) followed by ErrorCode 0 (success); RiskEventType: anonymizedIPAddress, investigationsThreatIntelligence; RiskLevelDuringSignIn: 10/50/100"
+  - claim_type: identity_attack_flows
+    source_url: https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    quote_or_anchor: "UTA0352 technique: phishing URL login.microsoftonline.com/organizations/oauth2/v2.0/authorize with Visual Studio Code client ID aebc6443-996d-45c2-90f0-388ff96faa56"
+# Sufficiency: MS TI is tier_1 with identity_attack_flows and entra_telemetry -- sufficient for high.
+# Lens diversity: MS TI (identity_provider) + Volexity (infrastructure) -- PASS
+
+# Promotion target: consolidate into atomics/T1078.004-device-code/T1078.004-device-code.yaml
+#   Add Storm-2372 variant to atomic_tests[].
+
+atomic_tests:
+  - name: "Storm-2372 variant -- device-code phishing token capture via TokenTacticsV2"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates Storm-2372 device-code OAuth flow abuse. The actor generates a device
+      code request, embeds the code in a lure (fake Teams meeting invitation), and
+      polls the token endpoint until the victim authenticates. On success the actor
+      captures access and refresh tokens.
+      MS TI verbatim: capture the authentication access and refresh tokens that are
+      generated, then use those tokens to access the targets accounts and data.
+      Entra errorCode sequence: 50199 (awaiting user) then 0 (success).
+      RiskEventType: anonymizedIPAddress, investigationsThreatIntelligence.
+    supported_platforms: [windows]
+    auth_profile: device-code-polling
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      client_id:
+        description: "OAuth client ID to use for device code request (lab: use a registered lab app)."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      scope:
+        description: "OAuth scope for the device code request."
+        type: String
+        default: "https://graph.microsoft.com/.default"
+      token_output_path:
+        description: "Path to write the captured token cache for downstream atomics."
+        type: Path
+        default: "tacklebox-storm2372-tokens.json"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/tokentacticsv2.json
+        throw "stub -- implement against lab tenant"
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          authenticationProtocol: deviceCode
+          errorCode_sequence: 50199 then 0
+      - source: entra_risk
+        within_minutes: 30
+        match:
+          riskEventType: anonymizedIPAddress
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

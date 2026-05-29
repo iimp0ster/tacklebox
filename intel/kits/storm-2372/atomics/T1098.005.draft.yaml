@@ -1,0 +1,81 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1098.005
+display_name: "Storm-2372 -- Device Registration to Entra ID via Microsoft Authentication Broker (Post-Feb 14 PRT)"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "MS TI Feb 14 update: shifting to using the specific client ID for Microsoft Authentication Broker enabling PRT; Volexity UTA0355 independently corroborates device registration behavior with appId and resource."
+_citations:
+  - claim_type: identity_attack_flows
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "shifting to using the specific client ID for Microsoft Authentication Broker in the device code sign-in flow -- enables PRT generation after device registration"
+  - claim_type: entra_telemetry
+    source_url: https://www.microsoft.com/en-us/security/blog/2025/02/13/storm-2372-conducts-device-code-phishing-campaign/
+    quote_or_anchor: "Feb 14 evolution: Microsoft Authentication Broker client ID enables PRT generation after device registration"
+  - claim_type: identity_attack_flows
+    source_url: https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    quote_or_anchor: "UTA0355 technique: client_id 29d9ed98-a469-4536-ade2-f981bc1d605e, resource Device Registration Service 01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9 -- registers attacker-controlled device to victim Entra ID"
+  - claim_type: identity_attack_flows
+    source_url: https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    quote_or_anchor: "Detection: unique deviceId values, anomalous ClientAppID in logs; subsequent access shows Microsoft IP addresses due to registered device"
+# Sufficiency: MS TI is tier_1 with identity_attack_flows -- sufficient for medium.
+# Corroboration: Volexity (tier_2) provides independent confirmation of device registration behavior.
+
+# Promotion target: consolidate into atomics/T1098.005-device-registration-prt/T1098.005-device-registration-prt.yaml
+#   Add Storm-2372 variant to atomic_tests[].
+
+atomic_tests:
+  - name: "Storm-2372 variant -- device registration to Entra ID via Microsoft Authentication Broker"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the Storm-2372 post-Feb-14 device registration technique.
+      Actor uses the Microsoft Authentication Broker client ID in the device code
+      sign-in flow, then registers an attacker-controlled device to the victim
+      Entra ID tenant, enabling Primary Refresh Token (PRT) generation.
+      Volexity (UTA0355) corroborates: client_id 29d9ed98-a469-4536-ade2-f981bc1d605e,
+      resource Device Registration Service 01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9.
+      Post-registration access shows Microsoft IP addresses (not attacker), complicating
+      attribution. Unique deviceId and anomalous ClientAppID are the detection anchors.
+      Requires an access token obtained from T1078.004 (device-code theft step).
+    supported_platforms: [windows]
+    auth_profile: device-registration
+    input_arguments:
+      token_cache_path:
+        description: "Path to the token cache from T1078.004 step."
+        type: Path
+        default: "tacklebox-storm2372-tokens.json"
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      device_name:
+        description: "Name to register for the attacker-controlled device."
+        type: String
+        default: "tacklebox-lab-device"
+      device_output_path:
+        description: "Path to write registered device metadata."
+        type: Path
+        default: "tacklebox-storm2372-device.json"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/roadtx.json
+        throw "stub -- implement against lab tenant"
+    cleanup_command: |
+      # Remove the registered device from lab tenant at cleanup.
+      # Use Entra portal or Graph DELETE /devices/{id} -- device ID in output_path.
+      if (Test-Path -LiteralPath '#{device_output_path}') {
+          Remove-Item -LiteralPath '#{device_output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_audit
+        within_minutes: 10
+        match:
+          appId: 29d9ed98-a469-4536-ade2-f981bc1d605e
+          ResourceDisplayName: Device Registration Service
+      - source: entra_signin
+        within_minutes: 10
+        match:
+          appId: 29d9ed98-a469-4536-ade2-f981bc1d605e
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

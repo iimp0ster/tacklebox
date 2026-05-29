@@ -27,3 +27,20 @@ venv/
 
 # OS
 Thumbs.db
+
+# Planning documents — local working docs, not for remote
+**/PLAN-addendum-*.md
+**/PLAN-*.md
+
+# Claude Code — project context, settings, skills, worktrees, plans
+.claude/
+CLAUDE.md
+
+# Intel pipeline — local OSINT tooling, out of tacklebox scope
+intel_pipeline/
+
+# Claude skill review artifacts — internal QA only, never published
+intel/kits/REVIEW-*.md
+
+# Throwaway test artifacts
+intel/kits/**/test.txt

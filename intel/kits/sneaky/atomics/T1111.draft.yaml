@@ -1,0 +1,76 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1111
+display_name: "MFA relay interception -- Sneaky 2FA SAS endpoint relay"
+_mapping_confidence: high
+_mapping_confidence_rationale: "T1111 (Multi-Factor Authentication Interception) directly describes the behavior: Sekoia tier_1 source states Sneaky 2FA targets 'Microsoft Authenticator app, one-time passwords, SMS' and documents the Microsoft SAS (Step-up Authentication Service) endpoint relay sequence (BeginAuth/ProcessAuth/EndAuth) used to intercept and relay 2FA challenges in real time."
+_citations:
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "POST /SAS/BeginAuth, /SAS/ProcessAuth, /SAS/EndAuth relay sequence; 2FA methods targeted: Microsoft Authenticator app, one-time passwords, SMS"
+  - claim_type: api_endpoints
+    source_url: https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    quote_or_anchor: "Authentication flow: Login:login -> SAS:BeginAuth -> SAS:ProcessAuth -> SAS:EndAuth -> Kmsi:kmsi (RequestType values in M365 audit log)"
+
+# Promotion note: no existing T1111-* atomic in production tree.
+# Consolidate with intel/kits/mamba/atomics/T1111.draft.yaml at promotion:
+# create atomics/T1111-mfa-relay-interception/T1111-mfa-relay-interception.yaml
+# and add BOTH mamba and sneaky as entries in atomic_tests[].
+# <behavior-slug> = mfa-relay-interception (behavior, not kit).
+#
+# STUB ONLY -- executor cannot be implemented without a relay fixture.
+# Shared open question with mamba/T1111 (intel/kits/mamba/observation.md Q3).
+
+atomic_tests:
+  - name: "Sneaky 2FA -- SAS endpoint MFA relay interception"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"  # regenerate at promotion
+    description: |
+      Emulates the MFA relay step of the Sneaky 2FA AiTM kit.
+      Sneaky 2FA relays MFA challenges by directly calling the Microsoft SAS
+      (Step-up Authentication Service) endpoints from its phishing server:
+        1. POST /SAS/BeginAuth    -- initiates the 2FA challenge
+        2. POST /SAS/ProcessAuth  -- victim's code/approval transmitted
+        3. POST /SAS/EndAuth      -- confirms completion
+      Targeted 2FA methods: Microsoft Authenticator (push notification),
+      TOTP one-time passwords, SMS codes.
+
+      Relay request type sequence visible in M365 audit logs (from Sekoia):
+        Login:login -> SAS:BeginAuth -> SAS:ProcessAuth -> SAS:EndAuth -> Kmsi:kmsi
+      These RequestType values appear under the same correlationId. The
+      Sneaky 2FA detection rule correlates by correlationId within 10 minutes.
+
+      Detection signal (from Sekoia Sigma rule):
+        A sign-in succeeds with both Login:login (iOS Safari UA) AND Login:resume
+        (Windows Edge UA) under the same correlationId within 10 minutes.
+        The MFA succeeds because the relay forwards the victim's live response.
+        No MFA failure is logged -- the anomaly is source attribution, not auth state.
+
+      Lab substitute: NONE currently defined.
+      Same fixture design challenge as intel/kits/mamba/atomics/T1111.draft.yaml.
+      This stub documents the SAS endpoint sequence and expected telemetry shape
+      so detection engineering can validate the M365 audit log field mapping.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: TBD -- no wrap-tool currently supports SAS-endpoint MFA relay.
+        # TODO: design fixture using known TOTP seed in lab tenant (see mamba/T1111 stub).
+        throw "stub -- SAS MFA relay requires relay fixture; see observation.md open questions"
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 10
+        match:
+          # M365 audit RequestType sequence (from Sekoia; ECS field name in Sigma rule):
+          # office365.auth.request_type values: Login:login, SAS:BeginAuth,
+          #   SAS:ProcessAuth, SAS:EndAuth, Kmsi:kmsi
+          # Entra-native field name for RequestType -- verify against MS Learn:
+          requestType: "<UNKNOWN -- verify against MS docs>"
+          # MFA completes successfully; no failure event. authenticationRequirement
+          # reflects the MFA method intercepted (Authenticator / TOTP / SMS):
+          authenticationRequirement: "<UNKNOWN -- verify against MS docs>"
+          # correlationId ties all SAS steps together; key grouping field for detection:
+          correlationId: "<UNKNOWN -- verify against MS docs>"
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO

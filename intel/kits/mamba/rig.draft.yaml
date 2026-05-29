@@ -1,0 +1,44 @@
+# LAB TENANT ONLY. Draft -- do not move to /rigs/ until promotion checklist is green.
+# steps[*].atomic and requires_token_from use bare T-IDs in drafts;
+# promotion resolves each to the full T####-<behavior-slug> form.
+#
+# SCOPE OF THIS DRAFT: covers only the pre-auth relay phase (T1539, T1111)
+# grounded by Sekoia's Mamba 2FA post (2024-10-09).
+#
+# The production rigs/mamba.yaml contains additional post-auth steps
+# (T1528, T1550.001, T1213.002, T1534). Those steps are NOT included here
+# because this Sekoia report does not describe post-auth operator actions.
+# Before a unified promoted rig can be produced, those steps need tier_1
+# citation grounding specific to Mamba campaigns.
+#
+# At promotion, merge this draft with the existing rigs/mamba.yaml, prepending
+# T1539 and T1111 as steps 1-2 before the OAuth consent step.
+
+rig: mamba
+display_name: "Mamba 2FA -- AiTM relay phase emulation"
+description: |
+  Pre-auth relay phase of the Mamba 2FA AiTM kit as documented by Sekoia TDR
+  (2024-10-09). Emulates session-cookie capture (lab substitute: interactive
+  signin) and MFA relay interception (stub only; requires fixture).
+  Post-auth chain (OAuth consent, token pivot, mailbox access) is in the
+  production rigs/mamba.yaml and needs separate citation grounding.
+ua_profile: mamba-firefox-win
+egress_profile: residential
+stop_on_error: true
+_citations:
+  - claim_type: aitm_tradecraft
+    source_url: https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    quote_or_anchor: "Socket.IO relay proxies Microsoft login; captures ESTSAUTH cookie via s2c_cookies event"
+  - claim_type: kit_internals
+    source_url: https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    quote_or_anchor: "otp_command event with phish_otp; phish_state values RQ_OTP_APP, RQ_OTP_APP_CODE, RQ_OTP_PHONE"
+steps:
+  - atomic: T1539
+    test_name: "Capture session cookie via AiTM relay (lab: interactive signin)"
+    # requires_token_from: none -- this is the entry point of the chain
+
+  - atomic: T1111
+    test_name: "Relay MFA challenge (OTP or push) to Microsoft auth endpoint"
+    requires_token_from: T1539
+    # NOTE: T1111 executor is a stub. This step will throw in lab until
+    # fixture is implemented. set stop_on_error: false if running T1539 alone.

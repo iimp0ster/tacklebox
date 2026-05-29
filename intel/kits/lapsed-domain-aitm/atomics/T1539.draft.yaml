@@ -1,0 +1,81 @@
+# LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+attack_technique: T1539
+display_name: "AiTM session-cookie capture -- lapsed-domain campaign (team.ru.com / team.za.com)"
+_mapping_confidence: medium
+_mapping_confidence_rationale: "T1539 is the correct T-ID: Sublime tier_2 source explicitly states the final stage is an AITM phishing page capturing credentials and forwarding them live to Microsoft. Confidence is medium not high because the source is tier_2 without relay internals -- a reasonable interpretation rather than a tier_1 statement."
+_grounding_gap: |
+  CITATION INSUFFICIENCY -- check_grounding.py WILL FAIL.
+  Sublime Security is tier_2. aitm_tradecraft requires tier_1 OR two independent
+  tier_2 sources. Only one tier_2 citation present. Add tier_1 co-citation
+  covering Stage 3 relay internals (search Sekoia for team.ru.com or team.za.com
+  infrastructure) before promotion.
+_citations:
+  - claim_type: email_obfuscation
+    source_url: https://sublime.security/blog/aitm-phishing-with-russian-infrastructure-and-detection-evasion-from-a-lapsed-domain/
+    quote_or_anchor: "actual AITM phishing page that collects entered credentials, which are legitimately forwarded to Microsoft to login while also being captured"
+    tier: tier_2
+    grounding_status: INSUFFICIENT_ALONE
+# NOTE: email_obfuscation is the strongest claim_type Sublime grounds for this observation.
+# aitm_tradecraft would require tier_1 OR a second tier_2 -- neither available yet.
+# Validator will still FAIL (single tier_2 insufficient); this is intentional per _grounding_gap.
+
+# Promotion: no existing T1539-* entry matches this campaign.
+# Consolidate into atomics/T1539-cookie-replay/ if tier_1 source identifies
+# Stage 3 as a known kit. Create new entry if distinct.
+# behavior-slug = cookie-replay
+
+atomic_tests:
+  - name: "lapsed-domain campaign -- AiTM session-cookie capture (lab: interactive signin)"
+    auto_generated_guid: "00000000-0000-0000-0000-000000000000"
+    description: |
+      Emulates the session-cookie capture step of the lapsed-domain-aitm campaign
+      described by Sublime Security (June 2025).
+
+      Stage 3 is an O365 login page branded to the victim org that captures
+      credentials and forwards them live to Microsoft (AiTM relay).
+      Stage 3 domain: <random>.team.za[.]com/<hardcoded-folder>/
+      WebSocket C2: wss://52e42e6675254286a4273c62f3b19bfb.team.za[.]com/6802a801d7f11fb0bef7f792/
+
+      Relay mechanism NOT described by Sublime; tier_1 source required.
+
+      Lab substitute: interactive roadtx signin + cookie persist. Relay signal
+      (hardcoded UA, relay-origin IP, per-org subdomain) absent in lab execution.
+    supported_platforms: [windows]
+    auth_profile: lab-user-mfa
+    input_arguments:
+      tenant_id:
+        description: "Entra tenant ID of the lab tenant."
+        type: String
+        default: "00000000-0000-0000-0000-000000000000"
+      resource:
+        description: "Target resource URI (appId not confirmed for this campaign)."
+        type: String
+        default: "https://graph.microsoft.com"
+      token_output_path:
+        description: "Path to write the resulting token/cookie cache."
+        type: Path
+        default: "#{token_cache_path}"
+    executor:
+      name: powershell
+      command: |
+        # LAB TENANT ONLY -- Tacklebox.psm1 enforces at load
+        # wrap-tool: dependencies/manifests/roadtx.json
+        # TODO: confirm appId targeted by this campaign before setting --resource
+        roadtx interactiveauth `
+          --tenant '#{tenant_id}' `
+          --resource '#{resource}' `
+          --tokenfile '#{token_output_path}'
+    cleanup_command: |
+      if (Test-Path -LiteralPath '#{token_output_path}') {
+          Remove-Item -LiteralPath '#{token_output_path}' -Force
+      }
+    expected_telemetry:
+      - source: entra_signin
+        within_minutes: 5
+        match:
+          appId: "<UNKNOWN -- verify against MS docs>"
+          ipAddress: "<UNKNOWN -- verify against MS docs>"
+          userAgent: "<UNKNOWN -- verify against MS docs>"
+    exercises_chokepoint:
+      id: CP-TODO
+      url: https://iimp0ster.github.io/detection-chokepoints/CP-TODO
