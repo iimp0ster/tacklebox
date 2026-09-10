@@ -17,6 +17,7 @@ import { kitGuideEntries } from './content/kit-guides';
 import { toPublicKitNames } from './content/public-kit-names';
 import AtomicCatalog, { type PublicAtomic } from './AtomicCatalog';
 import KitConvergenceExplorer from './KitConvergenceExplorer';
+import { sitePath } from '../lib/site-path';
 
 const evidenceClaims = generated.evidenceClaims ?? [];
 const publicAtomics = generated.atomics.map((item) => ({
@@ -121,7 +122,7 @@ export default function Home() {
           onClick={() => setView('Home')}
           aria-label="Open Tacklebox home"
         >
-          <img className="brand-logo" src="/tacklebox-logo.png" alt="" />
+          <img className="brand-logo" src={sitePath('/tacklebox-logo.png')} alt="" />
           <span>
             <b>TACKLEBOX</b>
             <small>AiTM FIELD GUIDE</small>
@@ -160,7 +161,7 @@ export default function Home() {
             <div className="hero-copy">
               <img
                 className="hero-logo"
-                src="/tacklebox-logo.png"
+                src={sitePath('/tacklebox-logo.png')}
                 alt="Tacklebox — AiTM Lab Harness"
               />
               <p className="eyebrow">
@@ -350,7 +351,7 @@ export default function Home() {
                     <div className="guide-picker-actions">
                       <a
                         className="button-primary"
-                        href={guide.fieldGuideRoute}
+                        href={sitePath(guide.fieldGuideRoute)}
                       >
                         Open field guide <ArrowRight size={15} />
                       </a>
@@ -454,7 +455,7 @@ export default function Home() {
 
       <footer>
         <div className="footer-brand">
-          <img src="/tacklebox-logo.png" alt="" />
+          <img src={sitePath('/tacklebox-logo.png')} alt="" />
           <span>TACKLEBOX // DEFENSIVE RESEARCH</span>
         </div>
         <p>Isolated lab tenants only.</p>

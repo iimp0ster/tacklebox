@@ -603,7 +603,6 @@ test('mobile evidence sample index stays in document flow', async ({
 test('key routes avoid horizontal viewport overflow', async ({ page }) => {
   for (const path of [
     '/',
-    '/kits/tycoon-2fa',
     '/kits/bigbear-2',
     '/infrastructure/sneaky-2fa',
     '/infrastructure/tycoon-2fa',

@@ -2,7 +2,7 @@
 
 The public Tacklebox site helps defenders compare AiTM kit behavior, inspect evidence-backed attack paths and lure anatomy, and connect observed tradecraft to lab-safe emulation and detection opportunities.
 
-Live site: [tacklebox-aitm.tdbohlmann08.chatgpt.site](https://tacklebox-aitm.tdbohlmann08.chatgpt.site/)
+Live site: [iimp0ster.github.io/tacklebox](https://iimp0ster.github.io/tacklebox/)
 
 ## V1 scope
 

@@ -6,6 +6,7 @@ import {
   tycoonDossierReadiness,
 } from '../../content/infrastructure';
 import TycoonInfrastructureMap from '../TycoonInfrastructureMap';
+import { sitePath } from '../../../lib/site-path';
 
 export const metadata: Metadata = {
   title: 'Tycoon 2FA infrastructure and lure anatomy — Tacklebox',
@@ -22,14 +23,14 @@ export default function TycoonInfrastructurePage() {
   return (
     <main className="detail-site infra-detail-site">
       <header className="detail-nav">
-        <a href="/" className="detail-brand">
-          <img src="/tacklebox-logo.png" alt="" />
+        <a href={sitePath('/')} className="detail-brand">
+          <img src={sitePath('/tacklebox-logo.png')} alt="" />
           <span>TACKLEBOX</span>
         </a>
-        <a href="/#field-guides">All kit field guides</a>
+        <a href={sitePath('/#field-guides')}>All kit field guides</a>
       </header>
       <div className="infra-map-wrap">
-        <a className="back-link" href="/#field-guides">
+        <a className="back-link" href={sitePath('/#field-guides')}>
           <ArrowLeft size={16} /> Back to all kit field guides
         </a>
         <section className="infra-map-hero">
