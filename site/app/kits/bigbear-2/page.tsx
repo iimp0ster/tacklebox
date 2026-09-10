@@ -1,0 +1,32 @@
+import type { Metadata } from 'next';
+import { ArrowLeft, ArrowRight, ExternalLink, Network, ShieldCheck } from 'lucide-react';
+
+export const metadata: Metadata = { title: 'BigBear 2.0 dossier — Tacklebox', description: 'A sanitized, source-backed dossier of the BigBear 2.0 Evilginx2-based phishing-as-a-service campaign.' };
+
+const chain = [
+  ['T1566.002', 'Deliver lure', 'A phishing link leads to a wildcard-DNS relay with an automatically provisioned certificate.'],
+  ['T1557.001', 'Proxy Microsoft', 'The Evilginx2-based relay forwards the real Microsoft 365 authentication flow.'],
+  ['T1539', 'Capture session', 'Credentials and Microsoft-issued session material pass back through the attacker-controlled proxy.'],
+  ['T1550.004', 'Replay cookie', 'An automated replay API turns captured session material into cloud access.'],
+  ['T1102', 'Notify affiliate', 'Dedicated Telegram bots route captured material to separate affiliate operators.'],
+];
+
+export default function BigBearPage() {
+  return <main className="detail-site">
+    <header className="detail-nav"><a href="/" className="detail-brand"><img src="/tacklebox-logo.png" alt=""/><span>TACKLEBOX</span></a><a href="/">Kit matrix</a></header>
+    <div className="detail-wrap">
+      <a className="back-link" href="/"><ArrowLeft size={16}/> Back to field guide</a>
+      <section className="detail-hero kit-detail-hero"><div><p className="eyebrow">KIT DOSSIER // EVILGINX2-BASED PHAAS</p><h1>BigBear 2.0</h1><p className="detail-summary">A rebranded, multi-affiliate AiTM service that couples an Evilginx2 relay fleet with geo-matched residential proxies, real-time exfiltration, automated cookie replay, and custom browser injections that push victims away from phishing-resistant MFA.</p><div className="alias-row"><span>BigBear 2.0</span><span>“offy” Microsoft 365 phishlet</span></div></div><aside className="provenance-card"><p>DOSSIER CONTRACT</p><dl><div><dt>Evidence</dt><dd className="good">source-backed</dd></div><div><dt>Confidence</dt><dd className="good">high</dd></div><div><dt>Campaign</dt><dd>Observed 2026</dd></div><div><dt>Sanitization</dt><dd>IOCs and secrets omitted</dd></div></dl></aside></section>
+
+      <section className="detail-section"><p className="section-number">01 // BEHAVIOR CHAIN</p><h2>From lure to affiliate replay</h2><div className="behavior-chain">{chain.map(([id,label,detail], index) => <article key={id}><span>{String(index + 1).padStart(2, '0')}</span><code>{id}</code><h3>{label}</h3><p>{detail}</p>{index < chain.length - 1 && <ArrowRight className="chain-arrow"/>}</article>)}</div></section>
+
+      <section className="detail-section"><p className="section-number">02 // INFRASTRUCTURE</p><h2>A fleet, not a single phishing host</h2><div className="kit-infra"><div><span>VICTIM EDGE</span><b>Wildcard relay</b><small>TLS · Microsoft lure</small></div><ArrowRight/><div className="tier-one"><span>RELAY FLEET</span><b>42 managed VPS nodes</b><small>Central panel · SSE logs</small></div><ArrowRight/><div className="tier-two"><span>EVASION</span><b>Geo-matched proxy</b><small>69-country pool</small></div><ArrowRight/><div><span>AFFILIATE</span><b>Notify + replay</b><small>Telegram · cookie API</small></div></div><div className="lab-warning"><Network size={18}/><p><b>Durable relationship.</b> Hosting changes quickly. Provisioning, panel-to-node control, identity relay, session return, and affiliate reuse remain necessary edges.</p></div><a className="button-secondary" href="/infrastructure/sneaky-2fa"><Network size={17}/> Compare the Sneaky 2FA graph template</a></section>
+
+      <section className="detail-section"><p className="section-number">03 // CUSTOM INJECTIONS</p><h2>BigBear-specific page manipulation</h2><div className="fingerprint-table" role="table"><div className="fingerprint-row" role="row"><code>window.__bb_fido_down</code><div><b>FIDO2 downgrade marker</b><p>Disables WebAuthn primitives so the user falls back to phishable MFA.</p></div><span className="status status-strong">high</span><span>durable</span></div><div className="fingerprint-row" role="row"><code>fetch + XHR + MutationObserver</code><div><b>Telemetry suppression</b><p>Drops a reported Microsoft telemetry tuple and removes matching image requests.</p></div><span className="status status-draft">medium</span><span>contextual</span></div><div className="fingerprint-row" role="row"><code>#KmsiCheckboxField · idSIButton9</code><div><b>Automatic KMSI</b><p>Checks Keep Me Signed In and advances the page after a short delay.</p></div><span className="status status-draft">medium</span><span>contextual</span></div></div><div className="lab-warning"><ShieldCheck size={18}/><p><b>Detection boundary.</b> DOM identifiers and Microsoft endpoints are shared. Require the custom marker or multiple compatible injection behaviors before assigning the kit.</p></div></section>
+
+      <section className="detail-section"><p className="section-number">04 // DEFENDER CHOKEPOINTS</p><h2>What survives infrastructure rotation</h2><div className="telemetry-grid"><article><span>01</span><h3>Authentication method fallback</h3><p>Watch for users enrolled in phishing-resistant MFA unexpectedly completing a weaker method in a new browser context.</p></article><article><span>02</span><h3>Session-context discontinuity</h3><p>Join the authentication event to rapid reuse from a different network, device, or application context.</p></article><article><span>03</span><h3>Provisioning lineage</h3><p>Use certificate and DNS history only after a source-seeded service role has been established.</p></article><article><span>04</span><h3>Containment order</h3><p>Revoke sessions and refresh tokens, force reauthentication, reset credentials, and remove persistence—not just the domain.</p></article></div></section>
+
+      <section className="detail-section"><p className="section-number">05 // PROVENANCE</p><h2>Source and publication boundary</h2><p className="detail-summary">CloudSEK reports direct access to the campaign’s operator panel and analysis of an observed phishing page. Tacklebox preserves the architectural and behavioral findings but intentionally excludes operator identities, bot credentials, victim records, and live infrastructure values.</p><div className="source-list"><a href="https://www.cloudsek.com/blog/tracking-bigbear-2-0-evilginx2-phishing-campaign" target="_blank" rel="noreferrer"><span>CloudSEK — Tracking BigBear 2.0 Evilginx2 campaign</span><ExternalLink size={15}/></a></div></section>
+    </div>
+  </main>;
+}

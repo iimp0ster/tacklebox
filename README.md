@@ -9,6 +9,14 @@
 
 Tacklebox emulates the post-authentication behavior of adversary-in-the-middle (AiTM) phishing kits — Tycoon 2FA, Mamba 2FA, EvilProxy, and others — against a labeled lab tenant, then verifies that expected telemetry actually appeared in Entra sign-in logs and the Unified Audit Log. It is the empirical-validation counterpart to the [Detection Chokepoints framework](https://iimp0ster.github.io/detection-chokepoints/): you run an atomic or rig, and Tacklebox tells you whether your detections would have fired. It is **lab-only and safety-gated by design**.
 
+## Public field guide
+
+The [Tacklebox AiTM Field Guide](https://tacklebox-aitm.tdbohlmann08.chatgpt.site/) connects kit behavior, infrastructure and lure anatomy, reusable atomics, telemetry, and detection opportunities.
+
+The V1 site includes complete Tycoon 2FA and Sneaky 2FA field guides, a cross-kit behavior matrix, and Atomic Red Team-style emulation references. Kits without enough reviewed evidence remain visibly marked **Evidence gathering**, and atomic pages distinguish validated, partial, and pending coverage.
+
+Site source and local development instructions live in [`site/`](site/).
+
 ---
 
 ## Lab-only safety guard

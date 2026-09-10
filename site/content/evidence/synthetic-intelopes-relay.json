@@ -1,0 +1,32 @@
+{
+  "schema_version": "TackleboxPublicClaim/v1",
+  "claim_id": "tpc_668dea409daab2e5623440879050b981",
+  "producer": "tacklebox",
+  "upstream_evidence_ref": {
+    "schema_version": "TackleboxEvidenceReference/v1",
+    "provider": "intelopes",
+    "ref_id": "intelopes:tacklebox-evidence:956efd131c9d5ade11b5b6ae"
+  },
+  "kit_id": "tycoon-2fa",
+  "behavior_id": "server-side-relay-client-context",
+  "role": "relay",
+  "direction": "kit_to_identity",
+  "chokepoint_ref": "detection-chokepoints/aitm-websocket-relay",
+  "detection_tier": "Hunt",
+  "evidence_class": "synthetic_fixture",
+  "confidence": "high",
+  "time_basis": "observed",
+  "observed_date": "2026-08-30",
+  "source_published_date": null,
+  "review_state": "approved",
+  "caveat": "Synthetic compatibility fixture; it does not identify active infrastructure or prove a lab observation.",
+  "provenance": {
+    "source_url": null,
+    "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "judgment": {
+    "schema_version": "JudgmentRef/v1",
+    "subject_revision_sha256": "46ab92cc250f54dadc631c195406b8dcf0277ed84988213bf453cd8b181957b0",
+    "verdict": "pass"
+  }
+}
