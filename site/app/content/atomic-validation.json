@@ -1,0 +1,91 @@
+{
+  "T1539-cookie-replay": {
+    "status": "partial",
+    "provenance": "Publication-safe atomic validation contract; tenant results are validated in the labeled lab.",
+    "telemetry": [
+      {
+        "source": "Entra sign-in logs",
+        "signals": ["Lab identity sign-in or token use in the declared run window", "Client, resource, and source context retained for correlation"],
+        "window": "20 minutes"
+      },
+      {
+        "source": "Unified Audit Log",
+        "signals": ["First lab resource action after the replay", "Same lab identity and declared observation window"],
+        "window": "20 minutes"
+      }
+    ],
+    "validation": {
+      "query": "Filter the declared telemetry sources to the lab identity and Tacklebox execution window, then correlate the first resource action.",
+      "pass": "The expected identity-side event and follow-on lab action are present in the declared window and the detection matches the run.",
+      "fail": "The expected event is absent, outside the declared window, or the detection cannot correlate it to the lab run."
+    },
+    "cleanup": {
+      "local": "The declared cleanup command removes only the local token output file.",
+      "tenant": "No tenant object is created by the declared command. Revoke sessions or tokens issued during the lab run according to tenant policy."
+    }
+  },
+  "T1528-oauth-consent-grant": {
+    "status": "planned",
+    "provenance": "Atomic-specific validation contract; this consent-grant flow is not a device-authorization emulation.",
+    "telemetry": [
+      {
+        "source": "Entra sign-in logs",
+        "signals": ["Interactive authorization-code sign-in for the lab application", "Declared client and resource context"],
+        "window": "15 minutes"
+      },
+      {
+        "source": "Microsoft Graph audit",
+        "signals": ["Lab OAuth consent or delegated-permission change", "Application and lab identity correlation"],
+        "window": "15 minutes"
+      }
+    ],
+    "validation": {
+      "query": "Review Entra sign-in and Graph audit records for the lab identity, lab application, and declared execution window.",
+      "pass": "The expected authorization and consent records are present and the detection identifies the lab application context.",
+      "fail": "The authorization or consent record is absent, mismatched, or cannot be correlated to the controlled lab run."
+    },
+    "cleanup": {
+      "local": "The declared cleanup command removes only the local token output file.",
+      "tenant": "Manual tenant cleanup is required: remove the lab OAuth consent or delegated permission and revoke tokens issued for that lab application."
+    }
+  },
+  "T1078.004-suspicious-ua-signin": {
+    "status": "partial",
+    "provenance": "Tycoon source-observed user-agent substitution with a publication-safe lab validation contract.",
+    "validation": {
+      "query": "Filter Entra sign-in logs to the lab identity and declared window, then inspect the configured user-agent and application context.",
+      "pass": "The configured user-agent is present in the expected lab sign-in and the detection matches it with the declared context.",
+      "fail": "The expected user-agent event is absent or the detection does not match the lab sign-in."
+    },
+    "cleanup": {
+      "local": "The declared cleanup command removes only the local token output file.",
+      "tenant": "No tenant object is created by the declared command; revoke lab-issued tokens if tenant policy requires it."
+    }
+  },
+  "T1087.004-graph-enumeration": {
+    "status": "partial",
+    "provenance": "Tycoon Graph-recon mapping with a bounded atomic validation contract.",
+    "validation": {
+      "query": "Filter Graph audit records to the lab identity and declared run window, then count the expected discovery categories.",
+      "pass": "The bounded discovery sequence is visible and the detection matches it within the declared window.",
+      "fail": "The expected sequence is incomplete, outside the window, or does not produce the intended detection match."
+    },
+    "cleanup": {
+      "local": "The declared cleanup command removes only the local enumeration output file.",
+      "tenant": "The declared command is read-only; no tenant object cleanup is expected."
+    }
+  },
+  "T1098.005-device-registration-prt": {
+    "status": "partial",
+    "provenance": "Tycoon device-persistence mapping with a named lab-device validation contract.",
+    "validation": {
+      "query": "Filter Entra audit and sign-in records to the named lab device and declared execution window.",
+      "pass": "The expected device registration and follow-on PRT-backed activity are visible and the detection matches the lab run.",
+      "fail": "The expected device lifecycle events are absent or the detection cannot correlate them to the lab device."
+    },
+    "cleanup": {
+      "local": "The declared cleanup command uses the supplied token cache to delete the named lab device.",
+      "tenant": "Confirm that the named lab device was deleted; revoke any remaining lab-issued tokens according to tenant policy."
+    }
+  }
+}

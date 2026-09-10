@@ -1,0 +1,83 @@
+{
+  "convergence": [
+    {
+      "recordId": "T1539",
+      "kitId": "tycoon",
+      "slug": "T1539-cookie-replay",
+      "label": "Cookie replay",
+      "technique": "T1539",
+      "authProfile": "cookie-replay",
+      "safeSubstitute": "Replays controlled lab session material after issuance; it does not capture a session.",
+      "mappingValidation": "partial",
+      "provenance": "Tycoon session-use mapping; publication-safe lab substitute."
+    },
+    {
+      "recordId": "T1539",
+      "kitId": "sneaky",
+      "slug": "T1539-cookie-replay",
+      "label": "Cookie replay",
+      "technique": "T1539",
+      "authProfile": "cookie-replay",
+      "safeSubstitute": "Replays controlled lab session material after issuance; it does not capture a session.",
+      "mappingValidation": "partial",
+      "provenance": "Sneaky session-use mapping; publication-safe lab substitute."
+    },
+    {
+      "recordId": "T1078.004",
+      "kitId": "tycoon",
+      "slug": "T1078.004-suspicious-ua-signin",
+      "label": "Anomalous user-agent sign-in",
+      "technique": "T1078.004",
+      "authProfile": "suspicious-ua",
+      "safeSubstitute": "Records the relay-side user-agent signal in a lab token acquisition; it does not run a relay.",
+      "mappingValidation": "partial",
+      "provenance": "Tycoon relay telemetry mapping; source-observed user-agent profile."
+    },
+    {
+      "recordId": "T1098.005",
+      "kitId": "tycoon",
+      "slug": "T1098.005-device-registration-prt",
+      "label": "Device registration and PRT",
+      "technique": "T1098.005",
+      "authProfile": "device-registration-prt",
+      "safeSubstitute": "Registers a named lab device and requests a PRT; it does not reproduce the relay client context.",
+      "mappingValidation": "partial",
+      "provenance": "Tycoon device-persistence mapping; source-observed behavior with a documented atomic gap."
+    }
+  ],
+  "relations": [
+    {
+      "relationId": "t3",
+      "kitId": "tycoon",
+      "slug": "T1078.004-suspicious-ua-signin",
+      "label": "Anomalous user-agent sign-in",
+      "technique": "T1078.004",
+      "authProfile": "suspicious-ua",
+      "safeSubstitute": "Records the relay-side user-agent signal in a lab token acquisition; it does not proxy sign-in.",
+      "mappingValidation": "partial",
+      "provenance": "Tycoon relay-to-identity relation mapping."
+    },
+    {
+      "relationId": "t5",
+      "kitId": "tycoon",
+      "slug": "T1539-cookie-replay",
+      "label": "Cookie replay",
+      "technique": "T1539",
+      "authProfile": "cookie-replay",
+      "safeSubstitute": "Replays controlled lab session material after issuance; it does not capture or transfer a victim session.",
+      "mappingValidation": "partial",
+      "provenance": "Tycoon session-to-operator relation mapping."
+    },
+    {
+      "relationId": "t6",
+      "kitId": "tycoon",
+      "slug": "T1087.004-graph-enumeration",
+      "label": "Graph reconnaissance burst",
+      "technique": "T1087.004",
+      "authProfile": "graph-delegated",
+      "safeSubstitute": "Generates a bounded lab Graph discovery sequence; it does not reproduce the full operator console burst.",
+      "mappingValidation": "partial",
+      "provenance": "Tycoon operator-to-Graph relation mapping."
+    }
+  ]
+}
