@@ -7,6 +7,7 @@ import {
   TestTube2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { sitePath } from '../lib/site-path';
 
 export type PublicAtomic = {
   slug: string;
@@ -136,7 +137,7 @@ export default function AtomicCatalog({
         {filtered.map((item, index) => (
           <a
             className="atomic-card atomic-catalog-card"
-            href={`/atomics/${item.slug}`}
+            href={sitePath(`/atomics/${item.slug}`)}
             key={item.slug}
           >
             <div className="atomic-top">

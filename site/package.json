@@ -10,6 +10,7 @@
     "content:generate": "node scripts/generate-content.mjs",
     "prebuild": "node scripts/generate-content.mjs",
     "build": "vinext build",
+    "build:pages": "vinext build && node scripts/prepare-github-pages.mjs",
     "test:ui": "playwright test",
     "test:ui:headed": "playwright test --headed",
     "gate:ui": "npm run build && npm run test:ui",

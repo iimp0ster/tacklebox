@@ -15,6 +15,7 @@ import { atomicTradecraftBySlug } from '../../content/atomic-tradecraft';
 import { atomicValidationContracts } from '../../content/atomic-validation';
 import { featuredBySlug } from '../../content/featured';
 import { toPublicKitNames } from '../../content/public-kit-names';
+import { sitePath } from '../../../lib/site-path';
 
 const sourceNames: Record<string, string> = {
   entra_signin: 'Entra sign-in logs',
@@ -50,7 +51,7 @@ export default async function AtomicPage({
     return (
       <main className="detail-site">
         <div className="detail-wrap">
-          <a className="back-link" href="/#atomics">
+          <a className="back-link" href={sitePath('/#atomics')}>
             <ArrowLeft size={16} /> Back to atomic catalog
           </a>
           <h1>Atomic not found</h1>
@@ -83,14 +84,14 @@ export default async function AtomicPage({
   return (
     <main className="detail-site atomic-detail-site">
       <header className="detail-nav">
-        <a href="/" className="detail-brand">
-          <img src="/tacklebox-logo.png" alt="" />
+        <a href={sitePath('/')} className="detail-brand">
+          <img src={sitePath('/tacklebox-logo.png')} alt="" />
           <span>TACKLEBOX</span>
         </a>
-        <a href="/#atomics">Atomic catalog</a>
+        <a href={sitePath('/#atomics')}>Atomic catalog</a>
       </header>
       <div className="detail-wrap atomic-detail-wrap">
-        <a className="back-link" href="/#atomics">
+        <a className="back-link" href={sitePath('/#atomics')}>
           <ArrowLeft size={16} /> Back to atomic catalog
         </a>
 
@@ -432,7 +433,7 @@ export default async function AtomicPage({
             .filter((other) => other.slug !== item.slug)
             .slice(0, 3)
             .map((other) => (
-              <a href={`/atomics/${other.slug}`} key={other.slug}>
+              <a href={sitePath(`/atomics/${other.slug}`)} key={other.slug}>
                 <TestTube2 />
                 <span>
                   <small>{other.technique}</small>

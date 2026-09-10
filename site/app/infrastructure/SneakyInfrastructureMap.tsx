@@ -23,6 +23,7 @@ import {
   sneakyInfraTraces,
 } from '../content/infrastructure';
 import LureAnatomy from './SneakyLureAnatomy';
+import { sitePath } from '../../lib/site-path';
 import PixelNodeIcon from './PixelNodeIcon';
 import { getRelationAtomicMappings } from '../content/atomic-mappings';
 
@@ -486,7 +487,7 @@ export function KitInfrastructureMap({
               {relationAtomics.map((mapping) => (
                 <a
                   className="button-secondary"
-                  href={`/atomics/${mapping.slug}`}
+                  href={sitePath(`/atomics/${mapping.slug}`)}
                   key={mapping.slug}
                 >
                   Test this behavior

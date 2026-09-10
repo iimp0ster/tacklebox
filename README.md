@@ -11,7 +11,7 @@ Tacklebox emulates the post-authentication behavior of adversary-in-the-middle (
 
 ## Public field guide
 
-The [Tacklebox AiTM Field Guide](https://tacklebox-aitm.tdbohlmann08.chatgpt.site/) connects kit behavior, infrastructure and lure anatomy, reusable atomics, telemetry, and detection opportunities.
+The [Tacklebox AiTM Field Guide](https://iimp0ster.github.io/tacklebox/) connects kit behavior, infrastructure and lure anatomy, reusable atomics, telemetry, and detection opportunities.
 
 The V1 site includes complete Tycoon 2FA and Sneaky 2FA field guides, a cross-kit behavior matrix, and Atomic Red Team-style emulation references. Kits without enough reviewed evidence remain visibly marked **Evidence gathering**, and atomic pages distinguish validated, partial, and pending coverage.
 

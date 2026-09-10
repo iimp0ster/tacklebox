@@ -19,6 +19,7 @@ import {
   type ConvergenceRecord,
 } from './content/kit-convergence';
 import { getProcedureAtomicMapping } from './content/atomic-mappings';
+import { sitePath } from '../lib/site-path';
 
 type Mode = 'guided' | 'matrix';
 
@@ -319,7 +320,7 @@ export default function KitConvergenceExplorer() {
                   return (
                     <a
                       className="atomic-coverage-link behavior-emulation-link"
-                      href={`/atomics/${mapping.slug}`}
+                      href={sitePath(`/atomics/${mapping.slug}`)}
                       key={`${mapping.slug}-${procedure.kitId}`}
                     >
                       <span>
