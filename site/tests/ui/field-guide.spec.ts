@@ -53,18 +53,24 @@ test('primary field-guide views remain navigable and usable', async ({
     page.getByRole('heading', { name: 'Field guides' }),
   ).toBeVisible();
   await expect(
-    page.getByRole('heading', { name: 'Published analyses' }),
+    page.getByRole('heading', { name: 'Named kit and service analyses' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Cross-kit authentication patterns' }),
   ).toBeVisible();
   await expect(
     page.getByRole('link', { name: 'Open field guide' }),
-  ).toHaveCount(2);
+  ).toHaveCount(3);
   await expect(
     page.getByRole('link', { name: 'Open field guide' }).nth(0),
   ).toHaveAttribute('href', '/infrastructure/sneaky-2fa');
   await expect(
     page.getByRole('link', { name: 'Open field guide' }).nth(1),
   ).toHaveAttribute('href', '/infrastructure/tycoon-2fa');
-  await expect(page.getByText('Evidence gathering')).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Open field guide' }).nth(2),
+  ).toHaveAttribute('href', '/infrastructure/device-code-phishing');
+  await expect(page.getByText('Evidence gathering')).toHaveCount(2);
   await expect(
     page.getByRole('heading', { name: 'Reviewed evidence ledger' }),
   ).toBeVisible();
@@ -322,13 +328,12 @@ test('convergence explorer guides one phase at a time and preserves kit selectio
   await expect(
     explorer.getByRole('heading', { name: 'Authentication mediation' }),
   ).toBeVisible();
-  await explorer
-    .getByRole('button', { name: 'Device Code', exact: true })
-    .click();
-  await expect(explorer.locator('.guided-analysis')).toContainText(
-    'Device Code',
+  await expect(
+    explorer.getByRole('button', { name: 'Device Code', exact: true }),
+  ).toHaveCount(0);
+  await expect(explorer.locator('.authentication-mechanism-note')).toContainText(
+    'Device Code Phishing is a cross-kit OAuth pattern, not a selectable kit',
   );
-  await expect(explorer.locator('.guided-analysis')).toContainText('N/A');
 
   await explorer
     .getByRole('button', { name: 'Credential or session acquisition' })
@@ -361,9 +366,6 @@ test('convergence handoffs require the selected kit procedure mapping', async ({
     name: 'AiTM kit convergence explorer',
   });
 
-  await explorer
-    .getByRole('button', { name: 'Device Code', exact: true })
-    .click();
   await explorer
     .getByRole('button', { name: 'Tycoon 2FA', exact: true })
     .click();
@@ -419,7 +421,7 @@ test('legacy Tycoon dossier route resolves to the single field guide', async ({
     .click();
   await expect(page).toHaveURL(/\/#field-guides$/);
   await expect(
-    page.getByRole('heading', { name: 'Published analyses' }),
+    page.getByRole('heading', { name: 'Named kit and service analyses' }),
   ).toBeVisible();
 });
 
