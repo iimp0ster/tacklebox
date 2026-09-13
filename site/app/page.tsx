@@ -31,6 +31,22 @@ const publicAtomics = generated.atomics.map((item) => ({
 
 const views = ['Home', 'Compare kits', 'Field guides', 'Emulate'] as const;
 type View = (typeof views)[number];
+const guideCollections = [
+  {
+    objectType: 'kit_service',
+    eyebrow: 'KIT / SERVICE GUIDES',
+    title: 'Named kit and service analyses',
+    definition:
+      'Named kits or services with source-bounded infrastructure, lure, and relay behavior.',
+  },
+  {
+    objectType: 'authentication_pattern',
+    eyebrow: 'AUTHENTICATION-PATTERN GUIDES',
+    title: 'Cross-kit authentication patterns',
+    definition:
+      'Reusable authentication flows that can appear across campaigns; they do not attribute a campaign to a kit.',
+  },
+] as const;
 const viewByHash: Record<string, View> = {
   '#home': 'Home',
   '#atlas': 'Home',
@@ -312,54 +328,66 @@ export default function Home() {
       {view === 'Field guides' && (
         <div className="page-shell" id="field-guides">
           <header className="page-header">
-            <p className="eyebrow">KIT-SPECIFIC RESEARCH</p>
+            <p className="eyebrow">EVIDENCE-BOUND RESEARCH</p>
             <h1>Field guides</h1>
             <p>
-              Open a published kit guide for its evidence-bound attack graph and
-              lure anatomy. Publication state and the evidence ledger stay here.
+              Separate named kits and services from reusable authentication
+              patterns before following an evidence-bound guide.
             </p>
           </header>
           <section
             className="guide-picker"
             aria-labelledby="guide-picker-title"
           >
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">KIT FIELD GUIDES</p>
-                <h2 id="guide-picker-title">Published analyses</h2>
-              </div>
-            </div>
-            <div className="guide-picker-grid">
-              {kitGuideEntries.map((guide, index) => (
-                <article
-                  className={`guide-picker-card ${guide.status === 'published' ? 'guide-ready' : 'guide-waiting'}`}
-                  key={guide.kitName}
-                >
-                  <div className="guide-picker-head">
-                    <span>{String(index + 1).padStart(2, '0')}</span>
-                    <span
-                      className={`guide-status guide-status-${guide.status}`}
-                    >
-                      {guide.status === 'published'
-                        ? 'Published'
-                        : 'Evidence gathering'}
-                    </span>
-                  </div>
-                  <h3>{guide.kitName}</h3>
-                  <p>{guide.summary}</p>
-                  {guide.fieldGuideRoute && (
-                    <div className="guide-picker-actions">
-                      <a
-                        className="button-primary"
-                        href={sitePath(guide.fieldGuideRoute)}
-                      >
-                        Open field guide <ArrowRight size={15} />
-                      </a>
+            {guideCollections.map((collection) => {
+              const guides = kitGuideEntries.filter(
+                (guide) => guide.objectType === collection.objectType,
+              );
+              return (
+                <section className="guide-collection" key={collection.objectType}>
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">{collection.eyebrow}</p>
+                      <h2 id={collection.objectType === 'kit_service' ? 'guide-picker-title' : undefined}>
+                        {collection.title}
+                      </h2>
                     </div>
-                  )}
-                </article>
-              ))}
-            </div>
+                    <p>{collection.definition}</p>
+                  </div>
+                  <div className="guide-picker-grid">
+                    {guides.map((guide, index) => (
+                      <article
+                        className={`guide-picker-card ${guide.status === 'published' ? 'guide-ready' : 'guide-waiting'}`}
+                        key={guide.kitName}
+                      >
+                        <div className="guide-picker-head">
+                          <span>{String(index + 1).padStart(2, '0')}</span>
+                          <span className="guide-object-type">
+                            {guide.objectType === 'kit_service'
+                              ? 'KIT / SERVICE'
+                              : 'AUTHENTICATION PATTERN'}
+                          </span>
+                          <span className={`guide-status guide-status-${guide.status}`}>
+                            {guide.status === 'published'
+                              ? 'Published'
+                              : 'Evidence gathering'}
+                          </span>
+                        </div>
+                        <h3>{guide.kitName}</h3>
+                        <p>{guide.summary}</p>
+                        {guide.fieldGuideRoute && (
+                          <div className="guide-picker-actions">
+                            <a className="button-primary" href={sitePath(guide.fieldGuideRoute)}>
+                              Open field guide <ArrowRight size={15} />
+                            </a>
+                          </div>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </section>
           <section
             className="evidence-ledger"

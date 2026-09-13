@@ -5,6 +5,7 @@ import {
   infraSources,
   tycoonDossierReadiness,
 } from '../../content/infrastructure';
+import GuideAuthenticationModel from '../../GuideAuthenticationModel';
 import TycoonInfrastructureMap from '../TycoonInfrastructureMap';
 import { sitePath } from '../../../lib/site-path';
 
@@ -56,6 +57,16 @@ export default function TycoonInfrastructurePage() {
             </div>
           </aside>
         </section>
+        <GuideAuthenticationModel
+          objectType="KIT / PHAAS"
+          primary="Interactive relay"
+          relationship={{
+            label: 'Reported alternative: device-code grant',
+            evidenceHref:
+              'https://www.elastic.co/security-labs/tycoon-2fa-aitm-detection-engineering',
+            evidenceLabel: 'Elastic reporting',
+          }}
+        />
         <TycoonInfrastructureMap />
         <section
           className="readiness-limitations"
