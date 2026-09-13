@@ -24,6 +24,9 @@ import { sitePath } from '../lib/site-path';
 type Mode = 'guided' | 'matrix';
 
 const supportedStates: Applicability[] = ['observed', 'supported'];
+const comparableKitProfiles = kitProfiles.filter(
+  (kit) => kit.id !== 'device-code',
+);
 
 function stateLabel(state: Applicability) {
   return state === 'not-applicable' ? 'N/A' : state;
@@ -45,7 +48,7 @@ export default function KitConvergenceExplorer() {
       ),
     [reviewedOnly],
   );
-  const selectedProfiles = kitProfiles.filter((kit) =>
+  const selectedProfiles = comparableKitProfiles.filter((kit) =>
     selectedKits.includes(kit.id),
   );
   const phaseRecords = records.filter((record) => record.phase === activePhase);
@@ -128,7 +131,7 @@ export default function KitConvergenceExplorer() {
             <legend className="visually-hidden">
               Filter convergence by kit
             </legend>
-            {kitProfiles.map((kit) => (
+            {comparableKitProfiles.map((kit) => (
               <button
                 key={kit.id}
                 type="button"
@@ -179,6 +182,16 @@ export default function KitConvergenceExplorer() {
           </button>
         </div>
       </div>
+
+      <aside className="authentication-mechanism-note">
+        <strong>Authentication mechanism</strong>
+        <span>
+          This comparison is limited to named kits and services using
+          interactive relays. Device Code Phishing is a cross-kit OAuth pattern,
+          not a selectable kit.
+        </span>
+        <span>The source-bound pattern guide appears after promotion.</span>
+      </aside>
 
       {mode === 'guided' ? (
         <div className="guided-workspace">

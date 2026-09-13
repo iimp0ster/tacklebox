@@ -1775,6 +1775,18 @@ nav button.active {
 .guide-picker {
   margin-bottom: 42px;
 }
+.guide-collection + .guide-collection {
+  border-top: 1px solid var(--border);
+  margin-top: 34px;
+  padding-top: 34px;
+}
+.guide-collection .section-heading > p {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 480px;
+}
 .guide-picker-grid {
   display: grid;
   gap: 14px;
@@ -1798,6 +1810,78 @@ nav button.active {
   align-items: center;
   display: flex;
   justify-content: space-between;
+}
+.guide-picker-head .guide-object-type {
+  margin-left: auto;
+  margin-right: 8px;
+}
+.guide-object-type {
+  border: 1px solid var(--orange);
+  color: var(--orange);
+  display: inline-block;
+  font-family: var(--arcade);
+  font-size: 0.45rem;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+  padding: 5px 7px;
+  text-transform: uppercase;
+}
+.guide-authentication-model {
+  align-items: center;
+  background: rgb(13 56 54 / 68%);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 20px 0;
+  padding: 13px 16px;
+}
+.guide-authentication-model p {
+  color: var(--muted);
+  font-size: 0.73rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.guide-authentication-model p b {
+  color: var(--text);
+}
+.guide-authentication-relationship a,
+.authentication-mechanism-note a {
+  color: var(--yellow);
+  text-decoration: none;
+}
+.guide-evidence-link {
+  border-left: 1px solid var(--border-strong);
+  color: var(--muted) !important;
+  font-size: 0.66rem;
+  margin-left: 5px;
+  padding-left: 8px;
+}
+.authentication-mechanism-note {
+  align-items: center;
+  background: rgb(230 188 64 / 7%);
+  border-left: 3px solid var(--yellow);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0 18px 18px;
+  padding: 12px 14px;
+}
+.authentication-mechanism-note strong {
+  color: var(--yellow);
+  font-family: var(--arcade);
+  font-size: 0.46rem;
+  line-height: 1.6;
+}
+.authentication-mechanism-note span {
+  color: var(--muted);
+  flex: 1 1 360px;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+.authentication-mechanism-note a {
+  font-size: 0.68rem;
+  white-space: nowrap;
 }
 .guide-picker-head > span:first-child {
   color: var(--dim);

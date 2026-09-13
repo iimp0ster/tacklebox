@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { ArrowLeft, ExternalLink, ShieldCheck } from 'lucide-react';
 import { infraSources } from '../../content/infrastructure';
+import GuideAuthenticationModel from '../../GuideAuthenticationModel';
 import SneakyInfrastructureMap from '../SneakyInfrastructureMap';
 import { sitePath } from '../../../lib/site-path';
 
@@ -52,6 +53,13 @@ export default function SneakyInfrastructurePage() {
             </div>
           </aside>
         </section>
+        <GuideAuthenticationModel
+          objectType="KIT / PHAAS"
+          primary="Interactive API/MFA relay"
+          relationship={{
+            label: 'Contrast: device-code flow (not a Sneaky 2FA association)',
+          }}
+        />
         <SneakyInfrastructureMap />
         <section className="infra-provenance">
           <div>
