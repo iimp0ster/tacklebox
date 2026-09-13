@@ -320,6 +320,9 @@ export function KitInfrastructureMap({
                   return (
                     <g
                       key={relation.id}
+                      data-relation-id={relation.id}
+                      data-from={relation.from}
+                      data-to={relation.to}
                       className={`kg-relation relation-${relation.kind} ${relation.requirement !== 'required' ? 'optional' : ''} ${active ? 'active' : ''}`}
                     >
                       <path d={relation.path} markerEnd="url(#kg-arrow)" />
@@ -365,6 +368,7 @@ export function KitInfrastructureMap({
                 return (
                   <button
                     style={nodePositions[node.id]}
+                    data-node-id={node.id}
                     className={`kg-node plane-${node.plane} ${selectedId === node.id ? 'selected' : ''} ${graphMode === 'trace' && (selectedRelation.from === node.id || selectedRelation.to === node.id) ? 'edge-focus' : ''}`}
                     key={node.id}
                     onClick={() => {

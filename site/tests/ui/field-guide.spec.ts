@@ -580,6 +580,50 @@ test('knowledge graph and evidence lenses update their detail state', async ({
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('device-code graph edges connect their source and destination nodes', async ({
+  page,
+}) => {
+  await page.goto('/infrastructure/device-code-phishing');
+
+  const disconnectedEdges = await page.locator('.kg-relation').evaluateAll(
+    (relations) =>
+      relations.flatMap((relation) => {
+        const path = relation.querySelector<SVGPathElement>('path');
+        const fromId = (relation as SVGGElement).dataset.from;
+        const toId = (relation as SVGGElement).dataset.to;
+        const from = document.querySelector<HTMLElement>(
+          `.kg-node[data-node-id="${fromId}"]`,
+        );
+        const to = document.querySelector<HTMLElement>(
+          `.kg-node[data-node-id="${toId}"]`,
+        );
+        if (!path || !from || !to) return ['missing graph element'];
+
+        const matrix = path.getScreenCTM();
+        if (!matrix) return ['missing graph transform'];
+        const pointOnScreen = (point: DOMPoint) => point.matrixTransform(matrix);
+        const start = pointOnScreen(path.getPointAtLength(0));
+        const end = pointOnScreen(path.getPointAtLength(path.getTotalLength()));
+        const contains = (box: DOMRect, point: DOMPoint) =>
+          point.x >= box.left - 3 &&
+          point.x <= box.right + 3 &&
+          point.y >= box.top - 3 &&
+          point.y <= box.bottom + 3;
+
+        const failures: string[] = [];
+        if (!contains(from.getBoundingClientRect(), start)) {
+          failures.push(`${fromId} does not touch its outgoing edge`);
+        }
+        if (!contains(to.getBoundingClientRect(), end)) {
+          failures.push(`${toId} does not touch its incoming edge`);
+        }
+        return failures;
+      }),
+  );
+
+  expect(disconnectedEdges).toEqual([]);
+});
+
 test('mobile evidence sample index stays in document flow', async ({
   page,
 }) => {
